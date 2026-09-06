@@ -18,9 +18,20 @@ Extra Files/
 ########################
 GoogleService-Info.plist
 **/GoogleService-Info.plist
-
+Keys.plist
+**/Keys.plist
 Keys/
 **/Keys/
+
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.cer
+*.certSigningRequest
+*.mobileprovision
 
 ########################
 # CocoaPods
@@ -40,6 +51,7 @@ xcuserdata/
 
 ## build outputs
 build/
+dist/
 DerivedData/
 *.moved-aside
 
@@ -89,6 +101,15 @@ fastlane/test_output
 iOSInjectionProject/
 
 ########################
+# Tooling / scratch (scripts, tooling around the project)
+########################
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+########################
 # Xcode Patch
 ########################
 *.xcodeproj/*
@@ -97,17 +118,3 @@ iOSInjectionProject/
 !*.xcworkspace/contents.xcworkspacedata
 /*.gcno
 **/xcshareddata/WorkspaceSettings.xcsettings
-# Secrets
-Keys.plist
-**/Keys.plist
-Keys/
-**/Keys/
-
-
-# Secrets
-Keys.plist
-**/Keys.plist
-Keys/
-**/Keys/
-GoogleService-Info.plist
-**/GoogleService-Info.plist
