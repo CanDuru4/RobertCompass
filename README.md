@@ -1,5 +1,7 @@
 # Robert Compass
 
+<a href="https://canduru.net"><img src="docs/assets/canduru-banner.png" alt="Can Duru" width="221" height="90"></a>
+
 An iOS orienteering app with shared teams, GPS checkpoints, questions, and a live leaderboard. The Xcode project and bundle identity retain the original Radventure names so this can remain an update to the existing app.
 
 ## Modernization status
@@ -161,6 +163,23 @@ The opt-in live check is `node backend/scripts/live-smoke.js --project robert-co
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
 - Expiry is enforced for new answer receipts even while the client is suspended. Records finalize when a member reconnects; no paid cleanup service is configured.
 - Original Firebase exports are preserved locally, but recovering usable historical data from them has not been attempted.
+
+## Original release screenshots
+
+These archived screenshots show the original school-login release. They are preserved for project history; the current login, team flow, and setup are described above.
+
+<p align="center">
+<img src="docs/assets/screenshot-login.png" alt="Original school login" width="300">
+<img src="docs/assets/screenshot-map.png" alt="Original campus map" width="300">
+<img src="docs/assets/screenshot-checkpoint.png" alt="Original checkpoint question" width="300">
+<img src="docs/assets/screenshot-scoreboard.png" alt="Original scoreboard" width="300">
+<img src="docs/assets/screenshot-force-quit.png" alt="Original administrator prompt" width="300">
+<img src="docs/assets/screenshot-rules.png" alt="Original rules screen" width="300">
+</p>
+
+## Changelog and license
+
+See [CHANGELOG.md](CHANGELOG.md) for release history. Distributed under the [MIT License](LICENSE).
 
 ## References
 
