@@ -19,6 +19,15 @@ Extra Files/
 GoogleService-Info.plist
 **/GoogleService-Info.plist
 
+# Modern Firebase development
+**/FirebaseConfig.plist
+**/node_modules/
+.firebase/
+**/.env*
+**/*-debug.log
+**/*-debug.*.log
+!**/.env.example
+
 Keys/
 **/Keys/
 
@@ -94,6 +103,10 @@ iOSInjectionProject/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/*
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/project.xcworkspace/xcshareddata/
 !*.xcworkspace/contents.xcworkspacedata
 /*.gcno
 **/xcshareddata/WorkspaceSettings.xcsettings

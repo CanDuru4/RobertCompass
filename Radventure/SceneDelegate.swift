@@ -1,66 +1,57 @@
-//
-//  SceneDelegate.swift
-//  Radventure
-//
-//  Created by Can Duru on 22.06.2023.
-//
-
 import UIKit
+import FirebaseAuth
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-
-    var window: UIWindow?
-
-
-    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        guard let _ = (scene as? UIWindowScene) else { return }
-        guard let windowScene = (scene as? UIWindowScene) else { return }
-        window = UIWindow(frame: UIScreen.main.bounds)
-
-        //MARK: Create Navigation Controller
-        let nav = UINavigationController()
-        nav.viewControllers = [LogInViewController()]
-        nav.setNavigationBarHidden(false, animated: true)
-        
-        //MARK: Create Navigation Controller
-        let nav2 = UINavigationController()
-        nav2.viewControllers = [TabBarViewController()]
-        nav2.setNavigationBarHidden(false, animated: true)
-        
-        //MARK: Set App Start
-        self.window?.rootViewController = nav
-        window?.makeKeyAndVisible()
-        window?.windowScene = windowScene
-    }
-
-    func sceneDidDisconnect(_ scene: UIScene) {
-        // Called as the scene is being released by the system.
-        // This occurs shortly after the scene enters the background, or when its session is discarded.
-        // Release any resources associated with this scene that can be re-created the next time the scene connects.
-        // The scene may re-connect later, as its session was not necessarily discarded (see `application:didDiscardSceneSessions` instead).
-    }
-
-    func sceneDidBecomeActive(_ scene: UIScene) {
-        // Called when the scene has moved from an inactive state to an active state.
-        // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
-    }
-
-    func sceneWillResignActive(_ scene: UIScene) {
-        // Called when the scene will move from an active state to an inactive state.
-        // This may occur due to temporary interruptions (ex. an incoming phone call).
-    }
-
-    func sceneWillEnterForeground(_ scene: UIScene) {
-        // Called as the scene transitions from the background to the foreground.
-        // Use this method to undo the changes made on entering the background.
-    }
-
-    func sceneDidEnterBackground(_ scene: UIScene) {
-        // Called as the scene transitions from the foreground to the background.
-        // Use this method to save data, release shared resources, and store enough scene-specific state information
-        // to restore the scene back to its current state.
-    }
-
-
+extension Notification.Name {
+    static let accountDidChange = Notification.Name("compass.accountDidChange")
 }
 
+/// Routes each scene from authentication state, without stacking duplicate screens.
+/// - Example: UIKit constructs this delegate from the scene manifest.
+@MainActor
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    private var authListener: AuthStateDidChangeListenerHandle?
+    private var accountObserver: NSObjectProtocol?
+    private var currentRoute = ""
+
+    /// Create the scene window and subscribe to account changes.
+    /// - Parameters:
+    ///   - scene: Connecting window scene.
+    ///   - session: UIKit scene session.
+    ///   - connectionOptions: System connection context.
+    /// - Returns: Nothing.
+    /// - Example: Invoked by UIKit on launch.
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
+        window = UIWindow(windowScene: scene)
+        if let error = Backend.setupError {
+            let controller = TaskViewController()
+            controller.view.backgroundColor = .systemBackground
+            AppUI.form([AppUI.label("Connect your backend", style: .largeTitle), AppUI.label(error)], in: controller)
+            window?.rootViewController = controller
+        } else {
+            authListener = Auth.auth().addStateDidChangeListener { [weak self] _, _ in
+                Task { @MainActor [weak self] in self?.route() }
+            }
+            accountObserver = NotificationCenter.default.addObserver(forName: .accountDidChange, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.route() }
+            }
+            route()
+        }
+        window?.makeKeyAndVisible()
+    }
+
+    private func route() {
+        let user = Auth.auth().currentUser
+        let destination = user == nil ? "login" : (user?.isEmailVerified == true ? "app" : "verify")
+        guard destination != currentRoute else { return }
+        currentRoute = destination
+        let controller: UIViewController = destination == "app" ? TabBarViewController() : UINavigationController(rootViewController: LogInViewController())
+        window?.rootViewController = controller
+    }
+
+    deinit {
+        if let authListener { Auth.auth().removeStateDidChangeListener(authListener) }
+        if let accountObserver { NotificationCenter.default.removeObserver(accountObserver) }
+    }
+}

@@ -1,49 +1,27 @@
-//
-//  RulesViewController.swift
-//  Radventure
-//
-//  Created by Can Duru on 18.07.2023.
-//
-
-//MARK: Import
 import UIKit
-import WebKit
 
-class RulesViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+/// Displays locally available rules instead of opening an inaccessible Google document.
+/// - Example: `RulesViewController(rules: course.rules)`.
+final class RulesViewController: TaskViewController {
+    private let rules: String
 
-    //MARK: Load
+    /// Set the current course rules, with a useful general fallback.
+    /// - Parameter rules: Organizer-authored course instructions.
+    /// - Returns: A rules screen.
+    /// - Example: `RulesViewController(rules: nil)` for general instructions.
+    init(rules: String?) {
+        self.rules = rules ?? "Create a team or join using your captain's invite code. The captain starts the activity once everyone has joined. Visit the marked checkpoints and answer their questions within the stated GPS radius. Correct answers add points once for the whole team. The server enforces the deadline. Your progress remains available when you return to the app. Follow the organizer's course and safety instructions."
+        super.init(nibName: nil, bundle: nil)
+    }
+    required init?(coder: NSCoder) { nil }
+
+    /// Display readable, scrollable rules with Dynamic Type support.
+    /// - Returns: Nothing.
+    /// - Example: Called by UIKit.
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        //MARK: Webview Set Up
-        let webView = WKWebView()
-        webView.navigationDelegate = self
-        webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = false
-        view = webView
-        
-        //MARK: Back Button Set Up
-        let backButton = UIButton()
-        backButton.setImage(UIImage(systemName: "arrow.backward")?.withTintColor(UIColor(named: "AppColor1")!, renderingMode: .alwaysOriginal), for: .normal)
-        backButton.addTarget(self, action: #selector(self_dismiss), for: .touchUpInside)
-        view.addSubview(backButton)
-        backButton.contentHorizontalAlignment = .fill
-        backButton.contentVerticalAlignment = .fill
-        backButton.imageView?.contentMode = .scaleAspectFit
-        self.view.bringSubviewToFront(backButton)
-
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16), backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 13), backButton.widthAnchor.constraint(equalToConstant: 30), backButton.heightAnchor.constraint(equalToConstant: 30)])
-
-        //MARK: Web URL
-        let url = URL(string: "https://docs.google.com/document/d/1pNwQQqcL7sAD2mAfxr_RS5bu8v8Z-XjZO7gKOHArUCI/edit?usp=sharing")!
-        webView.load(URLRequest(url: url))
-        webView.allowsBackForwardNavigationGestures = false
-    }
-    
-    
-    
-    //MARK: Back Button Action
-    @objc func self_dismiss(){
-        self.dismiss(animated: true)
+        title = "Rules"
+        view.backgroundColor = .systemBackground
+        AppUI.form([AppUI.label("How to play", style: .largeTitle), AppUI.label(rules)], in: self)
     }
 }

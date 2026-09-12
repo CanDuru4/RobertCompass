@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    { "collectionGroup": "sessions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" }
+    ] },
+    { "collectionGroup": "leaderboard", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "score", "order": "DESCENDING" },
+      { "fieldPath": "elapsedSeconds", "order": "ASCENDING" }
+    ] }
+  ],
+  "fieldOverrides": []
+}
