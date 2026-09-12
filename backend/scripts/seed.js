@@ -9,10 +9,11 @@ import { parseArgs } from 'node:util';
 import { createHash } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { id, text, ensure } from '../src/domain.js';
+import { id, text, ensure, normalizeAnswer } from '../src/domain.js';
 
 const { values } = parseArgs({ options: {
   project: { type: 'string' }, file: { type: 'string' }, apply: { type: 'boolean', default: false },
+  'firebase-cli': { type: 'boolean', default: false },
 } });
 const projectId = values.project ?? 'demo-robert-compass';
 const local = projectId === 'demo-robert-compass';
@@ -34,7 +35,7 @@ const courseId = id(input.id);
 text(input.name, 'Course name', 100);
 ensure(typeof input.rules === 'string' && input.rules.trim().length > 0 && input.rules.length <= 10000,
   'invalid-argument', 'Rules must contain 1 to 10000 characters.');
-ensure(Number.isFinite(input.startsAt) && Number.isFinite(input.endsAt) && input.endsAt > input.startsAt,
+ensure(Number.isSafeInteger(input.startsAt) && Number.isSafeInteger(input.endsAt) && input.endsAt > input.startsAt,
   'invalid-argument', 'Course dates must be epoch milliseconds and end after the start.');
 ensure(Number.isInteger(input.durationSeconds) && input.durationSeconds >= 60 && input.durationSeconds <= 86400,
   'invalid-argument', 'Duration must be 60 to 86400 seconds.');
@@ -61,7 +62,7 @@ for (const point of input.checkpoints) {
     Number.isFinite(point.radiusMeters) && point.radiusMeters >= 10 && point.radiusMeters <= 500 &&
     Number.isInteger(point.points) && point.points > 0 && point.points <= 10000,
   'invalid-argument', 'Checkpoint location, radius, or points are invalid.');
-  answers[point.id] = point.answers;
+  answers[point.id] = point.answers.map(normalizeAnswer);
 }
 ensure(Array.isArray(input.routes) && input.routes.length > 0 && input.routes.length <= 20,
   'invalid-argument', 'Provide 1 to 20 routes.');
@@ -82,8 +83,9 @@ const course = {
 if (!local && !values.apply) {
   console.log(`Validated ${checkpoints.length} checkpoints for ${projectId}/${courseId}. Add --apply to create this course.`);
 } else {
-  initializeApp({ projectId });
-  const db = getFirestore();
+  const db = !local && values['firebase-cli']
+    ? await (await import('./owner-credentials.js')).ownerFirestore(projectId)
+    : getFirestore(initializeApp({ projectId }));
   const batch = db.batch();
   const ref = db.collection('games').doc(courseId);
   batch.create(ref, course);

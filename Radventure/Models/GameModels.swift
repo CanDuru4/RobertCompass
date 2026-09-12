@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import FirebaseFirestore
 
 /// Public course configuration. Answers are kept in server-only documents.
 /// - Example: `try Course.decode(id: documentID, data: fields)`.
@@ -33,7 +34,7 @@ struct Checkpoint: Decodable, DocumentModel {
     var isValid: Bool { abs(latitude) <= 90 && abs(longitude) <= 180 && radiusMeters > 0 && points > 0 }
 }
 
-/// Server-written team state that can be restored across devices and app suspension.
+/// Rules-validated team state that can be restored across devices and app suspension.
 /// - Note: All numeric dates are epoch milliseconds, independent of local timezone.
 /// - Example: `session.remainingSeconds(at: Date())`.
 struct GameSession: Decodable, DocumentModel {
@@ -93,7 +94,18 @@ extension DocumentModel {
     /// - Throws: `DataError.invalid` if data is malformed or fields are missing.
     /// - Example: `try GameSession.decode(id: documentID, data: fields)`.
     static func decode(id: String, data: [String: Any]) throws -> Self {
-        var fields = data
+        var fields = data.mapValues { value -> Any in
+            if let timestamp = value as? Timestamp {
+                return Double(timestamp.seconds * 1000 + Int64(timestamp.nanoseconds / 1000000))
+            }
+            return value
+        }
+        if fields["schemaVersion"] as? Int == 2, let created = fields["createdAt"] as? Double,
+           let end = fields["gameEndsAt"] as? Double, let duration = fields["durationSeconds"] as? Int {
+            guard (60...86400).contains(duration), end.isFinite else { throw DataError.invalid }
+            let start = fields["startedAt"] as? Double
+            fields["expiresAt"] = min((start ?? created) + Double(start == nil ? 3600000 : duration * 1000), end)
+        }
         fields["id"] = id
         do {
             let encoded = try JSONSerialization.data(withJSONObject: fields)

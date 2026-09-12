@@ -2,7 +2,6 @@ import Foundation
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseFunctions
 import FirebaseAppCheck
 
 /// Owns Firebase configuration and prevents accidental access to the retired project.
@@ -13,7 +12,6 @@ enum Backend {
     static private(set) var setupError: String?
     static private(set) var isEmulator = false
     static var db: Firestore { Firestore.firestore() }
-    static var functions: Functions { Functions.functions(region: Bundle.main.object(forInfoDictionaryKey: "FunctionsRegion") as? String ?? "europe-west1") }
     static var serverOffset: TimeInterval = 0
     static var now: Date { Date().addingTimeInterval(serverOffset) }
 
@@ -35,7 +33,6 @@ enum Backend {
             settings.isSSLEnabled = false
             settings.cacheSettings = MemoryCacheSettings()
             db.settings = settings
-            functions.useEmulator(withHost: "127.0.0.1", port: 5001)
             return
         }
         if ProcessInfo.processInfo.arguments.contains("--unconfigured") {
@@ -54,17 +51,18 @@ enum Backend {
         FirebaseApp.configure(options: options)
     }
 
-    /// Call a server-authorized operation and update the display clock when available.
+    /// Run a rules-validated Firebase operation and update the display clock when available.
     /// - Parameters:
-    ///   - name: Deployed callable name.
-    ///   - data: User input for that operation; the server validates it.
-    /// - Returns: The callable response dictionary.
+    ///   - name: Supported game or account operation.
+    ///   - data: User input for that operation; database rules validate it.
+    /// - Returns: The operation response dictionary.
     /// - Throws: Firebase errors for network failures or rejected operations.
     /// - Example: `try await Backend.call("refreshSession", ["sessionId": id])`.
     @discardableResult
     static func call(_ name: String, _ data: [String: Any] = [:]) async throws -> [String: Any] {
-        let result = try await functions.httpsCallable(name).call(data)
-        guard let response = result.data as? [String: Any] else { throw DataError.invalid }
+        guard let user = Auth.auth().currentUser else { throw GameWriteError("Sign in to continue.") }
+        let service = FirebaseGameService(db: db, user: user, offset: serverOffset)
+        let response = try await service.call(name, data: data)
         if let millis = response["serverTime"] as? NSNumber {
             serverOffset = millis.doubleValue / 1000 - Date().timeIntervalSince1970
         }

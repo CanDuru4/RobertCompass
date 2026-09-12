@@ -1,11 +1,53 @@
 import XCTest
 import FirebaseCore
 import FirebaseAppCheck
+import FirebaseFirestore
+import FirebaseAuth
 @testable import Radventure
 
 /// Regression tests for models, deadlines, presentation, and physical-device attestation.
 /// - Example: Run the RadventureTests target in Xcode.
 final class RadventureTests: XCTestCase {
+    /// Exercise the production game service and App Check using a disposable device account.
+    /// - Note: An explicit test tag and owner-prepared fixture are required. Existing sign-ins are preserved.
+    /// - Throws: XCTest skip, Firebase failures, or failed gameplay assertions.
+    /// - Example: Run only this test using the documented temporary xctestrun environment.
+    @MainActor
+    func testLiveGameplayOnPhysicalDevice() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Live App Check gameplay requires a physical device.")
+        #else
+        guard let tag = ProcessInfo.processInfo.environment["COMPASS_QA_TAG"],
+              tag.range(of: "^[a-f0-9]{16}$", options: .regularExpression) != nil else {
+            throw XCTSkip("An explicit temporary live fixture is required.")
+        }
+        try XCTSkipIf(Auth.auth().currentUser != nil, "Preserve the owner's signed-in account.")
+        let email = "compass-device-\(tag)@example.test"
+        let password = UUID().uuidString + UUID().uuidString
+        let user = try await Auth.auth().createUser(withEmail: email, password: password).user
+        for _ in 0..<30 {
+            try await user.reload()
+            if user.isEmailVerified { break }
+            try await Task.sleep(nanoseconds: 2000000000)
+        }
+        XCTAssertTrue(user.isEmailVerified, "The owner-side fixture must verify this exact temporary account.")
+        _ = try await user.getIDTokenResult(forcingRefresh: true)
+        _ = try await AppCheck.appCheck().token(forcingRefresh: true)
+        try await Backend.call("syncProfile", ["displayName": "Device QA"])
+        let result = try await Backend.call("createTeam", ["gameId": "qa-device-\(tag)", "teamName": "Device QA"])
+        let id = try XCTUnwrap(result["sessionId"] as? String)
+        try await Backend.call("startGame", ["sessionId": id])
+        let response = try await Backend.call("submitAnswer", ["sessionId": id, "checkpointId": "point", "answer": "correct",
+            "location": ["latitude": 41.0, "longitude": 29.0, "accuracy": 5.0, "capturedAt": Backend.now.timeIntervalSince1970 * 1000]])
+        XCTAssertEqual(response["accepted"] as? Bool, true)
+        let score = try await Backend.db.collection("games").document("qa-device-\(tag)").collection("leaderboard").document(id).getDocument(source: .server)
+        XCTAssertEqual(score.data()?["score"] as? Int, 100)
+        XCTAssertEqual(score.data()?["status"] as? String, "completed")
+        try await Backend.call("deleteAccount")
+        XCTAssertNil(Auth.auth().currentUser)
+        #endif
+    }
+
     /// Verify the bundled cloud configuration and Apple attestation on a real device.
     /// - Note: Simulators and unconfigured checkouts skip this live service check.
     /// - Throws: XCTest skip or missing-configuration errors; token values are never logged.
@@ -47,6 +89,30 @@ final class RadventureTests: XCTestCase {
         XCTAssertFalse(value.isOpen(at: Date(timeIntervalSince1970: 100)))
         XCTAssertFalse(value.isOpen(at: Date(timeIntervalSince1970: 120)))
         XCTAssertEqual(value.remainingSeconds(at: Date(timeIntervalSince1970: 120)), 0)
+    }
+
+    /// Decode Spark timestamps using the same millisecond boundary as security rules.
+    /// - Throws: Model decoding errors.
+    /// - Example: Run with XCTest.
+    func testSparkDeadlineUsesTrustedTimestampsAndCourseEnd() throws {
+        var fields: [String: Any] = [
+            "schemaVersion": 2, "gameId": "course", "gameName": "Course", "teamName": "Team", "ownerId": "owner",
+            "memberIds": ["owner"], "memberNames": ["owner": "Player"], "joinCode": "123456ABCDEF",
+            "status": "waiting", "score": 0, "checkpointIds": [], "completedIds": [],
+            "createdAt": Timestamp(seconds: 100, nanoseconds: 123456000), "startedAt": NSNull(),
+            "durationSeconds": 60, "gameEndsAt": 9000000.0, "expiresAt": 99999999.0,
+        ]
+        let waiting = try GameSession.decode(id: "spark", data: fields)
+        XCTAssertEqual(waiting.expiresAt, 3700123)
+        fields["startedAt"] = Timestamp(seconds: 110, nanoseconds: 654321000)
+        fields["status"] = "active"
+        let active = try GameSession.decode(id: "spark", data: fields)
+        XCTAssertEqual(active.expiresAt, 170654)
+        XCTAssertFalse(active.isOpen(at: Date(timeIntervalSince1970: 170.654)))
+        fields["gameEndsAt"] = 150000.0
+        XCTAssertEqual(try GameSession.decode(id: "spark", data: fields).expiresAt, 150000)
+        fields["durationSeconds"] = Int.max
+        XCTAssertThrowsError(try GameSession.decode(id: "spark", data: fields))
     }
 
     /// Use absolute dates so a course can cross midnight or a timezone boundary.

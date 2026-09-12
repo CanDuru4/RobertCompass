@@ -21,6 +21,7 @@ GoogleService-Info.plist
 
 # Modern Firebase development
 **/FirebaseConfig.plist
+/courses/*.private.json
 **/node_modules/
 .firebase/
 **/.env*

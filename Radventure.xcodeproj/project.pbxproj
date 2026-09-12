@@ -27,11 +27,11 @@
 		3DDAC8A572DDDA5838C0E165 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 9165AB6D0C5CFD46283F0DFA /* FirebaseFirestore */; };
 		553307F79914699CB631531D /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D15D3E6A18F0D0606430A03A /* Backend.swift */; };
 		590F1A6C4FE31A45711E344F /* GameModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1BA04F7181466EEB9152C40 /* GameModels.swift */; };
-		68EC8FC9250294061558B5C2 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 277C51D8C6346E6598E9679B /* FirebaseFunctions */; };
 		83652CC588866EE13FC5F5CA /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 38C1BC91EBEE0FF376FDFAA9 /* FirebaseAppCheck */; };
 		84D0761D17E13DCE36F76E7E /* AppUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 264FB66EA65415E38981A471 /* AppUI.swift */; };
 		A120696B3C953B4C5F07764D /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 082D99B407F9F898144FBEB1 /* FirebaseAuth */; };
 		AFD920F03538DBD741DACC0A /* Configuration in Resources */ = {isa = PBXBuildFile; fileRef = 77AECF32291E595D246045B5 /* Configuration */; };
+		CABBE564965EF96F2447F0A4 /* FirebaseGameService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57C2F482C16FAB2693315D1 /* FirebaseGameService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +79,7 @@
 		264FB66EA65415E38981A471 /* AppUI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppUI.swift; sourceTree = "<group>"; };
 		77AECF32291E595D246045B5 /* Configuration */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; path = Configuration; sourceTree = "<group>"; };
 		D15D3E6A18F0D0606430A03A /* Backend.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
+		D57C2F482C16FAB2693315D1 /* FirebaseGameService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FirebaseGameService.swift; sourceTree = "<group>"; };
 		F1BA04F7181466EEB9152C40 /* GameModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -89,7 +90,6 @@
 			files = (
 				A120696B3C953B4C5F07764D /* FirebaseAuth in Frameworks */,
 				3DDAC8A572DDDA5838C0E165 /* FirebaseFirestore in Frameworks */,
-				68EC8FC9250294061558B5C2 /* FirebaseFunctions in Frameworks */,
 				83652CC588866EE13FC5F5CA /* FirebaseAppCheck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -253,6 +253,7 @@
 			children = (
 				D15D3E6A18F0D0606430A03A /* Backend.swift */,
 				0A1ACA58364F1143E588030F /* GameStore.swift */,
+				D57C2F482C16FAB2693315D1 /* FirebaseGameService.swift */,
 			);
 			name = Services;
 			path = Services;
@@ -286,7 +287,6 @@
 			packageProductDependencies = (
 				082D99B407F9F898144FBEB1 /* FirebaseAuth */,
 				9165AB6D0C5CFD46283F0DFA /* FirebaseFirestore */,
-				277C51D8C6346E6598E9679B /* FirebaseFunctions */,
 				38C1BC91EBEE0FF376FDFAA9 /* FirebaseAppCheck */,
 			);
 			productName = Radventure;
@@ -422,6 +422,7 @@
 				553307F79914699CB631531D /* Backend.swift in Sources */,
 				84D0761D17E13DCE36F76E7E /* AppUI.swift in Sources */,
 				27BC7211A0E498AF6F1769AF /* GameStore.swift in Sources */,
+				CABBE564965EF96F2447F0A4 /* FirebaseGameService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -592,7 +593,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Radventure/Radventure.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = NV57XZ3KBV;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -632,7 +633,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Radventure/Radventure.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = NV57XZ3KBV;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -804,11 +805,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AB2EF3584408644F41855310 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
-		};
-		277C51D8C6346E6598E9679B /* FirebaseFunctions */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AB2EF3584408644F41855310 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseFunctions;
 		};
 		38C1BC91EBEE0FF376FDFAA9 /* FirebaseAppCheck */ = {
 			isa = XCSwiftPackageProductDependency;

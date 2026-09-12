@@ -7,15 +7,15 @@ An iOS orienteering app with shared teams, GPS checkpoints, questions, and a liv
 - UIKit app targeting iOS 15 or later, compiled with Xcode 27 and the iOS 27 SDK.
 - Firebase Apple SDK 12.19.1 pinned through Swift Package Manager. CocoaPods is no longer required.
 - Email/password accounts, verification, recovery, persistent sign-in, and account deletion replace the unavailable school Exchange login.
-- Shared lobbies, invite codes, captain controls, server-selected routes, GPS checks, atomic scoring, live results, and paginated history.
+- Shared lobbies, invite codes, captain controls, deterministic route assignment, GPS checks, atomic scoring, live results, and paginated history.
 - New Firebase project `robert-compass` and iOS app `com.CanDuru.Radventure` created in the owner's current Google account.
 - Email/Password provider enabled in that project, with Require enforcement and a minimum password length of 12 confirmed in the console.
 - Default Standard Firestore database created in `europe-west1` on Spark. Tested access rules and indexes are deployed to the live project.
 - Firebase CLI authorization is complete, and the new Apple configuration is downloaded into the ignored local configuration folder.
 - App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`. The signed app passed all eight unit/device checks on the owner's iPhone 17 Pro Max running iOS 27, including a real Firebase App Attest token exchange.
-- The owner requires the no-cost Spark plan. Do not enable Blaze, attach billing, or deploy paid Firebase services. The protected game service needs an external host before live gameplay can work; Firebase continues to provide Authentication and Firestore. Local tests use disposable Firebase emulators.
+- The app runs entirely on Firebase Spark: Authentication, Firestore transactions, and security rules. No Cloud Functions, external server, billing account, or paid plan is required. Do not enable Blaze. Local tests use disposable Firebase emulators.
 
-The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The supplied practice course is explicitly sample data, not an approved campus route.
+The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The local practice course is emulator sample data. The live Robert College Starter course uses the campus center supplied by the owner and six mapped footpath checkpoints. Its positions have not been walked on site.
 
 ## Open and run
 
@@ -27,7 +27,7 @@ Without a new configuration file, the app presents a setup screen. For simulator
 
 Requirements: Node 22, Java 21 or later, Xcode, and an installed iOS simulator runtime. Dependencies are locked in `backend/package-lock.json` and Xcode's `Package.resolved`.
 
-The backend uses Firebase Admin 14.4.0 and Functions 7.3.2. A `qs` override keeps the HTTP dependency on patched version 6.16.0 or later until upstream ranges catch up. See the [upstream advisory](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g) and [Admin release notes](https://firebase.google.com/support/release-notes/admin/node).
+Organizer tools use Firebase Admin 14.4.0, Firestore 9.1.0, and Google Auth Library 10.9.1. The earlier Functions implementation remains only as a historical reference under `backend/src`; it is neither called by the app nor configured for deployment. A `qs` override keeps the HTTP dependency on patched version 6.16.0 or later until upstream ranges catch up. See the [upstream advisory](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g) and [Admin release notes](https://firebase.google.com/support/release-notes/admin/node).
 
 The `gaxios` dependency also uses a scoped `uuid` 11.1.1 override; its only use is the compatible `v4()` boundary generator. Development-only Firebase CLI dependencies still have upstream moderate audit advisories. Do not feed the CLI untrusted CSV, archives, or database exports. Production and development audits are checked separately; no automatic major-version downgrade is applied to silence audit output.
 
@@ -40,7 +40,7 @@ npm --prefix "$COMPASS_ROOT/backend" test
   --config "$COMPASS_ROOT/firebase.json" --project demo-robert-compass
 ```
 
-Keep that terminal running. Services bind only to `127.0.0.1`: Auth 9099, Firestore 8080, Functions 5001, and emulator UI 4000. Do not start a second instance on these ports. In another terminal, run integration tests before seeding the UI fixtures because those tests clear the disposable demo database:
+Keep that terminal running. Services bind only to `127.0.0.1`: Auth 9099, Firestore 8080, and emulator UI 4000. Do not start a second instance on these ports. In another terminal, run the Spark security tests, then seed the UI fixtures. Spark tests clear only their separate `demo-compass-spark-tests` namespace:
 
 ```sh
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
@@ -65,7 +65,7 @@ xcodebuild -project "$COMPASS_ROOT/Radventure.xcodeproj" -scheme Radventure \
   CODE_SIGN_IDENTITY=- test
 ```
 
-Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Firebase Auth from accessing the simulator keychain. Swift tests cover decoding, stable IDs, deadline boundaries, suspension across midnight, and duration formatting. Backend tests cover verified identity, access rules, concurrent joins/answers, expiry, captain/admin controls, and deletion. UI tests exercise sign-in, team creation, both question styles, results, history, and relaunch restoration. They supply a fresh location at each checkpoint through XCTest and restore the previous simulated location afterward. An interrupted fixture activity is ended through the normal captain controls before the next run.
+Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Firebase Auth from accessing the simulator keychain. Swift tests cover decoding, stable IDs, deadline boundaries, suspension across midnight, and duration formatting. Spark tests use client SDKs to verify identity, atomic profile pointers, invite lookup, concurrent joins and answers, capacity, entry codes, precise-location and clock checks, expiry, captain controls, private data, score forgery, and deletion. UI tests exercise sign-in, team creation, both question styles, results, history, and relaunch restoration. They supply a fresh location at each checkpoint through XCTest and restore the previous simulated location afterward. An interrupted fixture activity is ended through the normal captain controls before the next run.
 
 ## Connect the new cloud project
 
@@ -75,8 +75,8 @@ Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Fir
 2. Create the default Firestore database in `europe-west1`, initially in production mode. Enable Authentication with Email/Password, set minimum password length to 12, and review verification/recovery email templates. Players must verify their address before reading course data.
 3. Download the Apple configuration for `com.CanDuru.Radventure`. Save it locally as `Radventure/Configuration/FirebaseConfig.plist`. Xcode copies the `Configuration` resource folder using its standard resource phase, including when it contains no configuration file. Keep only the Apple client configuration in this folder; never put private keys here. Git ignores the configuration. Other bundles and the retired project are rejected.
 4. Register App Check using App Attest and your confirmed Apple Developer team. Test on a physical device. Simulator development uses emulators because App Attest is unavailable there.
-5. Keep the project on Spark. The owner explicitly declined a paid Firebase plan. Firebase Cloud Functions cannot be the live game-service host under this constraint; deploy the protected game service on an approved existing server or a separate no-cost host. Hosting selection and that deployment are pending.
-6. Deploy the verified database rules and indexes independently of the game service:
+5. Keep the project on Spark. Gameplay writes go directly through Firestore transactions checked by `firestore.spark.rules`. `firebase.json` intentionally contains no Functions deployment. Spark quotas limit capacity; do not attach billing to work around them.
+6. Deploy the verified database rules and indexes:
 
 ```sh
 "$COMPASS_ROOT/backend/node_modules/.bin/firebase" deploy \
@@ -84,13 +84,13 @@ Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Fir
   --only firestore:rules,firestore:indexes
 ```
 
-7. After the external game service is deployed, wait for indexes to finish building, import a reviewed course, and test two real accounts on physical devices. Verify email delivery/recovery, team joining, simultaneous scoring, background/resume, location denial, history, sign-out, and deletion before distribution. Physical App Attest verification is already complete.
+7. Import a reviewed course and verify it through the app. Live two-account checks already passed for sign-in, shared teams, captain start, concurrent scoring, leaderboard updates, and account deletion. Check actual email delivery/recovery and walk the starter route before organizing an event. Physical App Attest verification is complete.
 
-Production callables enforce App Check and require an existing, enabled, email-verified user. Firestore denies all client writes. Do not weaken these rules to work around configuration errors. Analytics, notifications, Crashlytics, and school OAuth are not required.
+Firestore authorizes only verified players and narrowly defined atomic transitions. Private answers remain unreadable to app clients. App Attest is registered and tested, and Firestore App Check enforcement is enabled. The console notes that enforcement can take up to 15 minutes to propagate. Authentication App Check remains in monitoring mode. Analytics, notifications, Crashlytics, and school OAuth are not required.
 
 ## Course import
 
-Run `node backend/scripts/seed.js --project robert-compass --file /absolute/course.json` to validate without writing. Add `--apply` after reviewing its course ID, dates, coordinates, rules, and answers. Live import requires owner-controlled Application Default Credentials, not the iOS configuration key. Configure local Google credentials or execute in Google Cloud Shell; never commit credential files.
+Run `node backend/scripts/seed.js --project robert-compass --file /absolute/course.json` to validate without writing. Add `--apply` after reviewing its course ID, dates, coordinates, rules, and answers. Live import uses owner-controlled Application Default Credentials, or add `--firebase-cli` to reuse the already authorized local CLI with `XDG_CONFIG_HOME="$COMPASS_ROOT/build/firebase-cli"`. The CLI adapter is pinned to Firebase Tools 15.30.0 and keeps access tokens in memory. No service-account key or new login is needed on this checkout.
 
 The input is one JSON object:
 
@@ -98,7 +98,7 @@ The input is one JSON object:
 | --- | --- |
 | `id` | Unique letters, digits, underscores, or hyphens; existing IDs are never overwritten |
 | `name`, `rules` | Display name and complete player rules |
-| `startsAt`, `endsAt` | Epoch milliseconds; end strictly after start |
+| `startsAt`, `endsAt` | Safe integer epoch milliseconds; end strictly after start |
 | `durationSeconds` | Integer 60 to 86400 |
 | `maxTeamSize` | Integer 1 to 20 |
 | `latitude`, `longitude` | Reviewed map center |
@@ -115,44 +115,56 @@ The importer separates answers and a SHA-256 entry-code hash into server-only `p
 
 | Collection | Access and purpose |
 | --- | --- |
-| `users/{uid}` | Owner reads own display name and current session pointer; server writes |
+| `users/{uid}` | Owner reads and updates a validated display name, active pointer, and deletion tombstone |
 | `games/{id}` | Verified users read published courses and public checkpoints |
 | `games/{id}/leaderboard/{sessionId}` | Verified users read team name, score, elapsed time, status |
-| `sessions/{id}` | Members read their team's membership, route, progress, and invite code |
-| `privateGames/{id}` | Server only, answers and optional entry-code hash |
-| `joinCodes/{code}` | Server only, invite lookup |
+| `sessions/{id}` | Members read and atomically update their team; verified invite holders can get an open lobby by its random ID |
+| `privateGames/{id}` | Organizer writes only; rules can check answers and entry-code hashes, clients cannot read |
+| `joinCodes/{code}` | Verified exact-code lookup, no listing; created atomically with a new team |
+| `users/{uid}/attempts/{id}` | Owner-private, rules-validated answer/location receipt used for scoring |
+| `users/{uid}/entries/{gameId}` | Owner-private proof of a correct course entry code |
 
-Scores and deadlines are calculated in server transactions. Retried or simultaneous correct answers award points once. Captains start/end teams; members can leave a waiting lobby. Admin cancellation requires a signed `admin: true` custom claim assigned through trusted server administration, never a password embedded in the app.
+Server timestamps establish creation, start, and answer acceptance times. Rules validate the exact score increase, completed checkpoint, and leaderboard projection together using `getAfter()`. Retried or simultaneous answers award points once. Route assignment uses the creation timestamp modulo the course route count; it is deterministic, not cryptographically random. Captains start/end teams; members can leave a waiting lobby. Organizer changes require trusted Firebase administration.
 
-The app requests recent precise location to center the map or submit an answer. Raw locations are not stored in Firestore by this implementation. Client GPS is not proof against a compromised device.
+The app requests recent precise location to center the map or submit an answer. A valid answer temporarily stores a private receipt containing the answer, coordinates, accuracy, capture time, and trusted acceptance time. The app deletes the receipt after scoring or a confirmed duplicate. Interrupted receipts older than 24 hours are removed in batches of up to 100 when the player next connects or refreshes; account deletion clears all receipts. There is no scheduled retention job, so abandoned accounts can retain interrupted receipts until cleanup. Client GPS is not proof against a compromised device.
 
 Deletion requires recent password reauthentication and no open activity. It deletes the Auth account, removes personal membership/name fields from shared history, transfers captain ownership if needed, and anonymizes empty teams while preserving scores. An anonymous UID tombstone prevents in-flight requests from recreating the profile. Retry interrupted cleanup to finish deletion. The owner's privacy policy must describe retention and platform logging before publication.
 
-## Release limits
+## Live Robert College course
 
-Verified locally on September 12, 2026: Debug simulator build, Release iPhone build (unsigned), 7 Swift tests, 2 simulator UI scenarios, 6 backend domain tests, and 17 Firestore/Auth/Functions integration tests all passed. The UI scenario restores an active session after termination, completes both sample checkpoints for 200 points, and checks the leaderboard, history, and completed-session restoration. Production dependency audit reports zero vulnerabilities; the full development dependency audit retains five moderate upstream advisories.
+The owner selected campus center `41.066965, 29.035686`. `Robert College Starter` is published as `robert-college-starter-2026`, with six checkpoints, 600 possible points, a 45-minute limit, and teams of up to six. It remains available until September 13, 2027 at 00:00 Istanbul time. Players can choose any checkpoint order.
 
-Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log`, `build/integration-verified.log`, and `build/release-final.log`. A subsequent signed iPhone Debug build passed in `build/device-build-fixed.log`. Configuration-present and configuration-absent incremental builds passed, including removal of stale bundled configuration when the source file is absent. Live Firestore rules and index deployment succeeded, recorded in `build/firestore-deploy.log`, and an unauthenticated live read was denied with HTTP 403. Live gameplay requires an external game-service deployment compatible with the owner's no-cost Firebase requirement.
+The full organizer import, including private answers, is kept in the ignored local file `courses/robert-college-starter.private.json`. Do not commit it. Coordinates were selected from mapped footways, not guessed building entrances: [OpenStreetMap campus](https://www.openstreetmap.org/way/473745091), [central and south paths](https://www.openstreetmap.org/way/463590115), [west and north paths](https://www.openstreetmap.org/way/463590117). Map data: OpenStreetMap contributors, ODbL. The Bosphorus question is supported by the [school profile](https://website.robcol.k12.tr/uploads/file/robert-college-school-profile-2022-23.pdf).
 
-After the resource-packaging change, all seven Swift regression tests passed in `build/config-regression.xcresult`; the physical-only attestation test was skipped on the simulator. The simulator gameplay rerun exposed an unavailable location fixture. With XCTest providing fresh checkpoint locations, both UI scenarios passed in `build/config-ui-fixed.xcresult`.
+The course is labeled an independent starter activity. On-site accessibility has not been verified. Observe current campus access rules and review the points before hosting an event.
 
-The updated Release iPhone build also passed in `build/release-cloud-config.log`. Its bundled configuration points to `robert-compass` and `com.CanDuru.Radventure`; neither legacy credential plist is present. This Release check used `CODE_SIGNING_ALLOWED=NO`, so it does not establish distribution readiness.
+## Verification and remaining release checks
 
-Physical-device evidence is in `build/device-attest-unlocked.xcresult` and `build/device-attest-unlocked.log`: eight tests passed, with no skipped tests, including successful production App Attest verification against the new Firebase project.
+The Firebase Spark migration passed eight simulator model tests (including version-2 timestamp/deadline decoding), two gameplay/setup UI scenarios, and 12 client-SDK security/concurrency cases. The full simulator run also passed the existing launch scenario. A live two-account check passed email/password sign-in, shared team creation/joining, captain start, rejected wrong answers, concurrent scoring exactly once, live leaderboard observation, score-forgery rejection, and identity removal/account deletion. Temporary QA accounts and exact QA documents were cleaned up.
 
-- Simulator compilation does not verify every supported iOS version. Test the oldest supported device and current production iOS before App Store submission.
-- Real email delivery and complete live gameplay still need verification after the external server setup. Distribution provisioning remains a separate release check.
+Final simulator evidence: `build/spark-final-ios.xcresult` and `build/spark-final-rules.log`. Deployment and live two-client evidence: `build/spark-deploy.log` and `build/spark-live-smoke.log`. Production dependencies report zero audit vulnerabilities in `build/spark-audit.log`.
+
+The final unsigned Release build also passed in `build/spark-final-release.log`. It targets the new Firebase project and has no Firebase Functions product dependency. This verifies compilation and packaging, not App Store distribution signing.
+
+Version 3.0 build 34 was installed and launched on the owner's iPhone. Both physical checks passed in `build/spark-live-device.xcresult`: a fresh App Attest exchange and a full native FirebaseGameService flow covering sign-in, profile creation, team creation, captain start, answer scoring, leaderboard read, and account deletion. These checks ran after Firestore App Check enforcement was enabled. The test used a synthetic location for an isolated temporary course; it does not verify walking the campus route. `build/spark-device-fixture.log` confirms cleanup of the temporary device account and test documents.
+
+To repeat the opt-in device test, choose a fresh random 16-character hexadecimal tag, start `node backend/scripts/device-fixture.js --tag TAG --apply` with the authorized CLI environment, and set `COMPASS_QA_TAG` to that same tag in the RadventureTests target's xctestrun `EnvironmentVariables`. Build for testing first and keep the edited xctestrun beside the generated file so its relative bundle paths remain valid. Run only `RadventureTests/RadventureTests/testLiveGameplayOnPhysicalDevice` and `RadventureTests/RadventureTests/testLiveAppAttestOnPhysicalDevice` on the paired iPhone. The gameplay test skips if the owner is already signed in. The phone generates its temporary password in memory; the helper only verifies the exact tagged test account and cleans its data afterward. No password or token is printed or stored in the test plan.
+
+The opt-in live check is `node backend/scripts/live-smoke.js --project robert-compass --apply`, with the authorized CLI environment above. It creates its own temporary accounts and tests database rules through the client SDK; owner access only creates and cleans test fixtures. It does not send verification or recovery emails. Run it before enabling Firestore App Check enforcement; after enforcement use the signed iPhone app for live checks rather than weakening protection for this script.
+
+- Real inbox verification/recovery and walking all campus checkpoints remain manual acceptance checks.
+- Debug and unsigned Release compilation do not establish App Store distribution readiness. Confirm distribution provisioning and test the oldest supported iOS version before submission.
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
-- Expiry is enforced on every answer even while the client is suspended. Expired records finalize when a member reconnects; no recurring paid cleanup job is configured.
-- Old course content/history needs an export or reconstruction from the organizer.
+- Expiry is enforced for new answer receipts even while the client is suspended. Records finalize when a member reconnects; no paid cleanup service is configured.
+- Old users and scores cannot be recovered without access to the original project or an export.
 
 ## References
 
 - [Firebase Apple SDK releases](https://firebase.google.com/support/release-notes/ios)
 - [Xcode requirements](https://developer.apple.com/xcode/system-requirements/)
 - [Email/password authentication](https://firebase.google.com/docs/auth/ios/password-auth)
-- [Callable functions](https://firebase.google.com/docs/functions/callable)
-- [Functions runtime and billing](https://firebase.google.com/docs/functions/manage-functions)
+- [Firebase Spark pricing and quotas](https://firebase.google.com/pricing)
+- [Atomic security-rule validation](https://firebase.google.com/docs/firestore/security/rules-conditions)
 - [App Attest](https://firebase.google.com/docs/app-check/ios/app-attest-provider)
 - [Firestore emulators](https://firebase.google.com/docs/emulator-suite/connect_firestore)
 
