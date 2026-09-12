@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "demo-robert-compass",
+    "production": "robert-compass"
+  }
+}

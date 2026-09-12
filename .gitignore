@@ -1,61 +1,8 @@
-# Created by https://www.toptal.com/developers/gitignore/api/swift,cocoapods,xcode
-# Edit at https://www.toptal.com/developers/gitignore?templates=swift,cocoapods,xcode
-
-########################
-# macOS
-########################
+# macOS and local Xcode state
 .DS_Store
-**/.DS_Store
-
-########################
-# Project junk (your custom folder)
-########################
-Extra Files/
-**/Extra Files/
-
-########################
-# Secrets / private config
-########################
-GoogleService-Info.plist
-**/GoogleService-Info.plist
-Keys.plist
-**/Keys.plist
-Keys/
-**/Keys/
-
-.env
-.env.*
-!.env.example
-*.pem
-*.p12
-*.key
-*.cer
-*.certSigningRequest
-*.mobileprovision
-
-########################
-# CocoaPods
-########################
-Pods/
-# Keep Podfile.lock tracked (do NOT ignore it)
-
-########################
-# Xcode / Swift
-########################
-## User settings
 xcuserdata/
-
-## compatibility with Xcode 8 and earlier
 *.xcscmblueprint
 *.xccheckout
-
-## build outputs
-build/
-dist/
-DerivedData/
-*.moved-aside
-
-## Xcode user-specific files
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -64,57 +11,52 @@ DerivedData/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
+**/xcshareddata/WorkspaceSettings.xcsettings
 
-## Obj-C/Swift specific
-*.hmap
+# Private configuration, course answers, and original project archives
+**/FirebaseConfig.plist
+**/GoogleService-Info.plist
+**/Keys.plist
+Keys/
+/courses/*.private.json
+Extra Files/
+**/.env*
+!**/.env.example
+*.pem
+*.p12
+*.key
+*.cer
+*.certSigningRequest
+*.mobileprovision
 
-## App packaging
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-## Playgrounds
-timeline.xctimeline
-playground.xcworkspace
-
-## SwiftPM build artifacts (safe to ignore)
-.build/
-
-########################
-# Carthage / Accio
-########################
-Carthage/Build/
-Dependencies/
-.accio/
-
-########################
-# fastlane
-########################
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
-########################
-# Code Injection
-########################
-iOSInjectionProject/
-
-########################
-# Tooling / scratch (scripts, tooling around the project)
-########################
-node_modules/
+# Generated dependencies, emulator output, and build/test artifacts
+**/node_modules/
+.firebase/
+**/*-debug.log
+**/*-debug.*.log
+build/
+dist/
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+DerivedData/
+.build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+/*.gcno
 
-########################
-# Xcode Patch
-########################
+# Prevent accidental reintroduction of the retired CocoaPods cache
+Pods/
+
+# Keep the project, shared schemes, and embedded Swift Package Manager workspace
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
-!*.xcworkspace/contents.xcworkspacedata
-/*.gcno
-**/xcshareddata/WorkspaceSettings.xcsettings
+!*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/*
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/project.xcworkspace/xcshareddata/

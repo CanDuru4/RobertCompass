@@ -1,17 +1,17 @@
-//
-//  AppChecl.swift
-//  Radventure
-//
-//  Created by Can Duru on 21.07.2023.
-//
-
-import Foundation
+import DeviceCheck
 import FirebaseAppCheck
 import FirebaseCore
 
-
-class MyAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
-  func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
-    return AppAttestProvider(app: app)
-  }
+/// Attests production requests without embedding administrator secrets in the app.
+/// - Note: DeviceCheck supports devices where App Attest is unavailable.
+/// - Example: Register before Firebase configuration.
+final class MyAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    /// Select the strongest available production provider.
+    /// - Parameter app: Configured Firebase app.
+    /// - Returns: App Attest or DeviceCheck provider.
+    /// - Example: Called by Firebase when requesting an App Check token.
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        if DCAppAttestService.shared.isSupported { return AppAttestProvider(app: app) }
+        return DeviceCheckProvider(app: app)
+    }
 }

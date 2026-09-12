@@ -73,6 +73,9 @@
             ReferencedContainer = "container:Radventure.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument argument = "--emulator" isEnabled = "YES"/>
+      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

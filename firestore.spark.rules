@@ -1,0 +1,251 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function player() {
+      return verified() && profile().deleting == false;
+    }
+    function bounded(value, limit) {
+      return value is string && value.size() > 0 && value.size() <= limit
+        && value == value.trim() && !value.matches('.*[\\x00-\\x1F\\x7F].*');
+    }
+    function deadline(s) {
+      let start = s.startedAt == null ? s.createdAt.toMillis() : s.startedAt.toMillis();
+      let window = s.startedAt == null ? 3600000 : s.durationSeconds * 1000;
+      return start + window < s.gameEndsAt ? start + window : s.gameEndsAt;
+    }
+    function open(s) {
+      return s.status in ['waiting', 'active'] && request.time.toMillis() < deadline(s);
+    }
+    function releasable(sessionId) {
+      return sessionId == null
+        || !existsAfter(/databases/$(database)/documents/sessions/$(sessionId))
+        || !open(getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data)
+        || !(request.auth.uid in getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data.memberIds);
+    }
+    function pointsElapsed(s) {
+      return s.startedAt == null || s.lastScoredAt == null ? 0
+        : int((s.lastScoredAt.toMillis() - s.startedAt.toMillis()) / 1000);
+    }
+    function elapsed(s) {
+      return s.status == 'expired' && s.startedAt != null
+        ? int((deadline(s) - s.startedAt.toMillis()) / 1000) : pointsElapsed(s);
+    }
+    function projection(s, b) {
+      return b.keys().hasOnly(['teamName', 'score', 'status', 'elapsedSeconds', 'updatedAt'])
+        && b.teamName == s.teamName && b.score == s.score && b.status == s.status
+        && b.elapsedSeconds == elapsed(s) && b.updatedAt == s.updatedAt;
+    }
+    function projected(sessionId, s) {
+      return s.startedAt == null
+        || projection(s, getAfter(/databases/$(database)/documents/games/$(s.gameId)/leaderboard/$(sessionId)).data);
+    }
+
+    match /users/{uid} {
+      allow read: if verified() && request.auth.uid == uid;
+      allow create: if verified() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['displayName', 'activeSessionId', 'deleting', 'updatedAt'])
+        && bounded(request.resource.data.displayName, 60)
+        && request.resource.data.activeSessionId == null
+        && request.resource.data.deleting == false && request.resource.data.updatedAt == request.time;
+      allow update: if verified() && request.auth.uid == uid
+        && request.resource.data.keys() == resource.data.keys()
+        && request.resource.data.updatedAt == request.time
+        && (profileUpdate() || beginDeletion());
+      allow delete: if false;
+
+      function profileUpdate() {
+        let d = request.resource.data;
+        let target = d.activeSessionId;
+        return resource.data.deleting == false && d.deleting == false && bounded(d.displayName, 60)
+          && (target == resource.data.activeSessionId ||
+            (releasable(resource.data.activeSessionId) && (target == null ||
+              (target is string && request.auth.uid in getAfter(/databases/$(database)/documents/sessions/$(target)).data.memberIds
+                && open(getAfter(/databases/$(database)/documents/sessions/$(target)).data)))));
+      }
+      function beginDeletion() {
+        let d = request.resource.data;
+        return request.auth.token.auth_time > request.time.toMillis() / 1000 - 300
+          && d.deleting == true && d.displayName == 'Deleted player' && d.activeSessionId == null
+          && releasable(resource.data.activeSessionId);
+      }
+      match /entries/{gameId} {
+        allow read, delete: if verified() && request.auth.uid == uid;
+        allow create, update: if player() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['hash', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.hash == get(/databases/$(database)/documents/privateGames/$(gameId)).data.entryCodeHash;
+      }
+      match /attempts/{attemptId} {
+        allow read, delete: if verified() && request.auth.uid == uid;
+        allow create, update: if player() && request.auth.uid == uid && validAttempt(attemptId);
+
+        function validAttempt(attemptId) {
+          let a = request.resource.data;
+          let s = get(/databases/$(database)/documents/sessions/$(a.sessionId)).data;
+          let p = get(/databases/$(database)/documents/games/$(s.gameId)/checkpoints/$(a.checkpointId)).data;
+          let answers = get(/databases/$(database)/documents/privateGames/$(s.gameId)).data.answers[a.checkpointId];
+          return a.keys().hasOnly(['sessionId', 'checkpointId', 'answer', 'location', 'accuracy', 'capturedAt', 'receivedAt'])
+            && attemptId == a.sessionId + '_' + a.checkpointId
+            && request.auth.uid in s.memberIds && s.status == 'active' && open(s)
+            && a.checkpointId in s.checkpointIds && !(a.checkpointId in s.completedIds)
+            && a.answer is string && a.answer.size() <= 300 && a.answer in answers
+            && a.location is latlng && a.accuracy is number && a.accuracy >= 0
+            && a.accuracy <= 50 && a.accuracy <= p.radiusMeters
+            && a.location.distance(latlng.value(p.latitude, p.longitude)) <= p.radiusMeters
+            && a.capturedAt is number && a.capturedAt <= request.time.toMillis() + 5000
+            && a.capturedAt >= request.time.toMillis() - 30000 && a.receivedAt == request.time;
+        }
+      }
+    }
+
+    match /games/{gameId} {
+      allow read: if verified() && resource.data.published == true;
+      allow write: if false;
+      match /checkpoints/{checkpointId} {
+        allow read: if verified() && get(/databases/$(database)/documents/games/$(gameId)).data.published == true;
+        allow write: if false;
+      }
+      match /leaderboard/{sessionId} {
+        allow read: if verified() && get(/databases/$(database)/documents/games/$(gameId)).data.published == true;
+        allow create, update: if verified()
+          && getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data.gameId == gameId
+          && getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data.startedAt != null
+          && getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data.updatedAt == request.time
+          && projection(getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data, request.resource.data)
+          && (request.auth.uid in getAfter(/databases/$(database)/documents/sessions/$(sessionId)).data.memberIds
+            || (profile().deleting && request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.memberIds));
+        allow delete: if false;
+      }
+    }
+
+    match /joinCodes/{code} {
+      allow get: if verified();
+      allow list: if false;
+      allow create: if player() && code.matches('^[A-F0-9]{12}$')
+        && request.resource.data.keys().hasOnly(['sessionId'])
+        && getAfter(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.ownerId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.joinCode == code
+        && getAfter(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow get: if verified() && (request.auth.uid in resource.data.memberIds || (resource.data.status == 'waiting' && open(resource.data)));
+      allow list: if verified() && request.auth.uid in resource.data.memberIds;
+      allow create: if player() && createSession(sessionId);
+      allow update: if verified() && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys() == resource.data.keys()
+        && (profile().deleting ? removeIdentity(sessionId) : transition(sessionId));
+      allow delete: if false;
+
+      function transition(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        return d.score != s.score ? scoreSession(sessionId)
+          : d.status != s.status ? (d.status == 'active' ? startSession(sessionId) : finishSession(sessionId))
+          : d.memberIds.size() > s.memberIds.size() ? joinSession(sessionId) : leaveSession(sessionId);
+      }
+
+      function createSession(sessionId) {
+        let d = request.resource.data;
+        let g = get(/databases/$(database)/documents/games/$(d.gameId)).data;
+        return d.keys().hasOnly(['schemaVersion', 'gameId', 'gameName', 'teamName', 'ownerId', 'memberIds', 'memberNames',
+          'joinCode', 'createdAt', 'startedAt', 'finishedAt', 'updatedAt', 'lastScoredAt', 'lastCheckpointId',
+          'status', 'score', 'checkpointIds', 'completedIds', 'durationSeconds', 'gameEndsAt', 'routeIndex'])
+          && d.schemaVersion == 2 && bounded(d.teamName, 60) && d.ownerId == request.auth.uid
+          && d.memberIds == [request.auth.uid] && d.memberNames.keys().hasOnly([request.auth.uid])
+          && d.memberNames[request.auth.uid] == profile().displayName
+          && d.createdAt == request.time && d.updatedAt == request.time
+          && d.startedAt == null && d.finishedAt == null && d.lastScoredAt == null && d.lastCheckpointId == null
+          && d.status == 'waiting' && d.score == 0 && d.checkpointIds == [] && d.completedIds == [] && d.routeIndex == null
+          && g.published && g.endsAt > request.time.toMillis() && d.gameName == g.name
+          && d.durationSeconds == g.durationSeconds && d.gameEndsAt == g.endsAt
+          && (!g.requiresEntryCode || get(/databases/$(database)/documents/users/$(request.auth.uid)/entries/$(d.gameId)).data.hash
+            == get(/databases/$(database)/documents/privateGames/$(d.gameId)).data.entryCodeHash)
+          && d.joinCode.matches('^[A-F0-9]{12}$')
+          && getAfter(/databases/$(database)/documents/joinCodes/$(d.joinCode)).data.sessionId == sessionId
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeSessionId == sessionId;
+      }
+      function joinSession(sessionId) {
+        let d = request.resource.data;
+        let s = resource.data;
+        let g = get(/databases/$(database)/documents/games/$(s.gameId)).data;
+        return s.status == 'waiting' && open(s) && g.published && g.endsAt > request.time.toMillis()
+          && !(request.auth.uid in s.memberIds) && s.memberIds.size() < g.maxTeamSize
+          && d.diff(s).affectedKeys().hasOnly(['memberIds', 'memberNames', 'updatedAt'])
+          && d.memberIds == s.memberIds.concat([request.auth.uid])
+          && d.memberNames.diff(s.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          && d.memberNames[request.auth.uid] == profile().displayName
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeSessionId == sessionId;
+      }
+      function startSession(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        let g = get(/databases/$(database)/documents/games/$(s.gameId)).data;
+        let index = int(s.createdAt.nanos() / 1000) % g.routes.size();
+        return s.ownerId == request.auth.uid && s.status == 'waiting' && open(s)
+          && g.published && g.startsAt <= request.time.toMillis() && g.endsAt > request.time.toMillis()
+          && d.diff(s).affectedKeys().hasOnly(['status', 'startedAt', 'checkpointIds', 'routeIndex', 'updatedAt'])
+          && d.status == 'active' && d.startedAt == request.time && d.routeIndex == index
+          && d.checkpointIds == g.routes[index].checkpointIds && projected(sessionId, d);
+      }
+      function scoreSession(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        let pointId = d.lastCheckpointId;
+        let a = get(/databases/$(database)/documents/users/$(request.auth.uid)/attempts/$(sessionId + '_' + pointId)).data;
+        let p = get(/databases/$(database)/documents/games/$(s.gameId)/checkpoints/$(pointId)).data;
+        let complete = d.completedIds.size() == s.checkpointIds.size();
+        let scoredAt = s.lastScoredAt == null || a.receivedAt > s.lastScoredAt ? a.receivedAt : s.lastScoredAt;
+        return s.status == 'active' && request.auth.uid in s.memberIds
+          && d.diff(s).affectedKeys().hasOnly(['status', 'score', 'completedIds', 'finishedAt', 'lastScoredAt', 'lastCheckpointId', 'updatedAt'])
+          && pointId in s.checkpointIds && !(pointId in s.completedIds)
+          && a.sessionId == sessionId && a.checkpointId == pointId
+          && a.receivedAt >= s.startedAt && a.receivedAt.toMillis() < deadline(s)
+          && d.lastScoredAt == scoredAt && d.completedIds == s.completedIds.concat([pointId])
+          && d.score == s.score + p.points && d.status == (complete ? 'completed' : 'active')
+          && d.finishedAt == (complete ? scoredAt : null) && projected(sessionId, d);
+      }
+      function leaveSession(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        return s.status == 'waiting' && request.auth.uid in s.memberIds && s.ownerId != request.auth.uid
+          && d.diff(s).affectedKeys().hasOnly(['memberIds', 'memberNames', 'updatedAt'])
+          && d.memberIds == s.memberIds.removeAll([request.auth.uid])
+          && d.memberNames.diff(s.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          && !(request.auth.uid in d.memberNames)
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeSessionId == null;
+      }
+      function finishSession(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        return request.auth.uid in s.memberIds && s.status in ['waiting', 'active']
+          && d.diff(s).affectedKeys().hasOnly(['status', 'finishedAt', 'updatedAt'])
+          && ((s.ownerId == request.auth.uid && d.status == 'cancelled' && d.finishedAt == request.time)
+            || (d.status == 'expired' && !open(s) && d.finishedAt.toMillis() == deadline(s)))
+          && projected(sessionId, d);
+      }
+      function removeIdentity(sessionId) {
+        let s = resource.data;
+        let d = request.resource.data;
+        let last = d.memberIds.size() == 0;
+        return profile().deleting == true && request.auth.uid in s.memberIds && !open(s)
+          && d.diff(s).affectedKeys().hasOnly(['memberIds', 'memberNames', 'ownerId', 'teamName', 'updatedAt'])
+          && d.memberIds == s.memberIds.removeAll([request.auth.uid])
+          && d.memberNames.diff(s.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          && !(request.auth.uid in d.memberNames)
+          && d.ownerId == (s.ownerId == request.auth.uid ? (last ? '' : d.memberIds[0]) : s.ownerId)
+          && d.teamName == (last ? 'Deleted team' : s.teamName) && projected(sessionId, d);
+      }
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

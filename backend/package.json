@@ -1,0 +1,30 @@
+{
+  "name": "robert-compass-backend",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test test/domain.test.js",
+    "test:integration": "node --test test/spark.test.js",
+    "check": "node --check src/domain.js && node --check scripts/seed.js && node --check scripts/owner-credentials.js && node --check scripts/live-smoke.js && node --check scripts/device-fixture.js && node --check test/spark.test.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "9.1.0",
+    "firebase-admin": "14.4.0",
+    "google-auth-library": "10.9.1"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.0",
+    "firebase": "^11.0.0",
+    "firebase-tools": "15.30.0"
+  },
+  "overrides": {
+    "qs": "^6.16.0",
+    "gaxios": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

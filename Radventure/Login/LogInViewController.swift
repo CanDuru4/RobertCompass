@@ -1,359 +1,115 @@
-//
-//  LogInViewController.swift
-//  Radventure
-//
-//  Created by Can Duru on 17.07.2023.
-//
-
-//MARK: Import
 import UIKit
 import FirebaseAuth
-import FirebaseFirestore
 
+/// Email-based authentication, registration, verification, and recovery.
+/// - Note: No school tenant or Microsoft account is required.
+/// - Example: Present from the scene's unauthenticated route.
+@MainActor
+final class LogInViewController: TaskViewController {
+    private let email = UITextField()
+    private let password = UITextField()
+    private let name = UITextField()
+    private var registration = false
 
-class LogInViewController: UIViewController {
-    
-//MARK: Set Up
-    
-
-    
-    //MARK: Set Variables
-    var emailField = UITextField()
-    var passwordField = UITextField()
-    var loginButton = UIButton()
-    var db = Firestore.firestore()
-    var loggedin = 0
-    var account_check = 0
-    var isLoggedInOnAnotherDevice = false
-    var provider = OAuthProvider(providerID: "microsoft.com")
-    let loadingVC = LoadingViewController()
-    var gameName = ""
-    var score = ""
-    var time = ""
-    var date = ""
-    var team = ""
-    var profileInfo: [Info] = []
-    var completionCheck = 1
-    
-//MARK: Load
+    /// Build the appropriate sign-in or verification form.
+    /// - Returns: Nothing.
+    /// - Example: Called by UIKit when the view loads.
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(named: "AppColor1")
-        if Auth.auth().currentUser?.uid != nil {
-            self.navigationController?.pushViewController(TabBarViewController(), animated: true)
-            self.navigationController?.setNavigationBarHidden(true, animated: true)
-        }else{
-             //user is not logged in
+        view.backgroundColor = .systemBackground
+        title = "Robert Compass"
+        if let user = Auth.auth().currentUser, !user.isEmailVerified { verificationForm(user) }
+        else { signInForm() }
+    }
+
+    private func field(_ field: UITextField, title: String, content: UITextContentType) {
+        field.placeholder = title
+        field.accessibilityIdentifier = title
+        field.borderStyle = .roundedRect
+        field.font = .preferredFont(forTextStyle: .body)
+        field.adjustsFontForContentSizeCategory = true
+        field.textContentType = content
+        field.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
+        field.autocorrectionType = .no
+    }
+
+    private func signInForm() {
+        field(email, title: "Email", content: .emailAddress)
+        email.keyboardType = .emailAddress
+        email.autocapitalizationType = .none
+        field(password, title: "Password", content: .password)
+        password.isSecureTextEntry = true
+        field(name, title: "Display name", content: .name)
+        name.isHidden = true
+        let submit = AppUI.button("Sign in", action: UIAction { [weak self] _ in self?.submit() })
+        let toggle = AppUI.button("Create an account", action: UIAction { [weak self, weak submit] action in
+            guard let self else { return }
+            registration.toggle()
+            name.isHidden = !registration
+            password.textContentType = registration ? .newPassword : .password
+            submit?.configuration?.title = registration ? "Create account" : "Sign in"
+            (action.sender as? UIButton)?.configuration?.title = registration ? "I already have an account" : "Create an account"
+        })
+        let reset = AppUI.button("Forgot password", action: UIAction { [weak self] _ in self?.resetPassword() })
+        let logo = UIImageView(image: UIImage(named: "AppLogo"))
+        logo.contentMode = .scaleAspectFit
+        logo.backgroundColor = UIColor(named: "AppColor3")
+        logo.layer.cornerRadius = 16
+        logo.clipsToBounds = true
+        logo.heightAnchor.constraint(equalToConstant: 110).isActive = true
+        AppUI.form([logo, AppUI.label("Explore together", style: .largeTitle),
+                    AppUI.label("Visit checkpoints, answer questions, and follow your team's progress."), name, email, password, submit, toggle, reset], in: self)
+    }
+
+    private func submit() {
+        let address = email.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let secret = password.text ?? ""
+        guard address.contains("@"), !secret.isEmpty else { showMessage("Enter your email and password."); return }
+        let displayName = name.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if registration && (displayName.isEmpty || displayName.count > 60 || secret.count < 12) {
+            showMessage("Enter a display name up to 60 characters and a password of at least 12 characters.")
+            return
         }
-        self.setLabels()
-        
-        //MARK: Hide Keyboard
-        self.hideKeyboardWhenTappedAround()
-    }
-    
-    
-    
-//MARK: Variable Features
-    func setLabels(){
-        
-        
-        //MARK: Image Features
-        let imageLogo = UIImage(named: "AppLogo")
-        let imageView = UIImageView(image: imageLogo)
-        imageView.clipsToBounds = true
-        imageView.contentMode = .scaleAspectFit
-        view.addSubview(imageView)
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        
-        //MARK: Login Button Features
-        loginButton.backgroundColor = UIColor(named: "AppColor2")
-        loginButton.setTitle("Log in with Microsoft", for: .normal)
-        loginButton.setTitleColor(UIColor(named: "AppColor1"), for: .normal)
-        loginButton.layer.cornerRadius = 5
-        loginButton.clipsToBounds = true
-        loginButton.setImage(UIImage(named: "Microsoft")?.withRenderingMode(.alwaysOriginal).resized(to: CGSize(width: 30, height: 30)), for: .normal)
-        view.addSubview(loginButton)
-        loginButton.addTarget(self, action: #selector(logIn), for: .touchUpInside)
-        loginButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        //MARK: Varibles Constraints
-        NSLayoutConstraint.activate([
-            
-            
-            //MARK: Image Constraints
-            imageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
-            imageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 100),
-            imageView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor, constant: -40),
-            imageView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
-            imageView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            
-            //MARK: Login Button Constraints
-            loginButton.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
-            loginButton.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 30),
-            loginButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
-            loginButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            loginButton.heightAnchor.constraint(equalToConstant: 35),
-        ])
-        
-        //MARK: Log In Button Image Attributions
-        loginButton.moveImageLeftTextCenter()
-    }
-
-    
-    
-//MARK: Log In Function
-    var keys: NSDictionary?
-    let kGraphURI = "https://graph.microsoft.com/v1.0/me/"
-    @objc func logIn() {
-        
-        if let path = Bundle.main.path(forResource: "Keys", ofType: "plist") {
-               keys = NSDictionary(contentsOfFile: path)
-           }
-        let tenantID = keys?["tenantID"] as? String ?? ""
-        
-        //MARK: Valid   ate All Fields Filled
-        account_check = 0
-        print("HI" + tenantID)
-        provider.customParameters = [
-            "prompt": "consent",
-            "tenant": tenantID
-        ]
-        provider.scopes = ["user.read"]
-        provider.getCredentialWith(nil) { credential, error in
-          if error != nil {
-              let alert = UIAlertController(title: "Unsuccessful Log In Attempt!", message: "Please try again. Use your Robert College organization account.", preferredStyle: .alert)
-              alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
-              self.present(alert, animated: true, completion: nil)
-          }
-            if credential != nil {
-                self.loadingVC.modalPresentationStyle = .overCurrentContext
-                self.loadingVC.modalTransitionStyle = .crossDissolve
-                self.present(self.loadingVC, animated: true, completion: nil)
-                Auth.auth().signIn(with: credential!) { authResult, error in
-                    if error != nil {
-                        self.dismiss(animated: true)
-                        let alert = UIAlertController(title: "Unsuccessful Log In Attempt!", message: "Please try again.", preferredStyle: .alert)
-                        alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
-                        self.present(alert, animated: true, completion: nil)
-                    } else {
-                        guard let authResult = authResult else {
-                            return
-                        }
-                    
-                        
-                        self.getUserData {
-                            if self.isLoggedInOnAnotherDevice == true {
-                                self.dismiss(animated: true)
-                                do {
-                                    try Auth.auth().signOut()
-                                } catch let signOutError as NSError {
-                                    print("Error signing out: %@", signOutError)
-                                }
-                                let alert = UIAlertController(title: "Logged in another device", message: "Please log out on another device. If you do not have access to your device, please get in contact with your administrator.", preferredStyle: .alert)
-                                alert.addAction(UIAlertAction(title: "Ok", style: UIAlertAction.Style.default, handler: nil))
-                                self.present(alert, animated: true, completion: nil)
-
-                            } else {
-                                let removetext = "@robcol.k12.tr"
-                                //var name = authResult.user.email
-                                var name = authResult.user.displayName
-                                var email = authResult.user.email
-                                if let range = name!.range(of: removetext) {
-                                    name!.removeSubrange(range)
-                                }
-                                if self.account_check == 1 {
-                                    self.dismiss(animated: true)
-                                    self.navigateToTabBarViewController()
-                                    self.updateUserDataLogIn() {}
-                                } else if self.account_check == 0 {
-                                    self.updateUserData(name: name ?? "User", email: email ?? "user@robcol.k12.tr") {}
-                                    self.navigateToTabBarViewController()
-                                    self.dismiss(animated: true)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    
-    
-//MARK: Navigation to TabBarViewController
-    func navigateToTabBarViewController() {
-        self.navigationController?.pushViewController(TabBarViewController(), animated: true)
-        self.navigationController?.setNavigationBarHidden(true, animated: true)
-    }
-
-    
-    
-//MARK: Getting User Login Data
-    func getUserData(completion: @escaping () -> ()) {
-        let docRef = self.db.collection("users").document(Auth.auth().currentUser!.uid)
-        docRef.getDocument { (document, error) in
-            if let document = document, document.exists {
-                let data_document = document.data()?["login"] as? Int ?? 0
-                self.loggedin = data_document
-                self.isLoggedInOnAnotherDevice = data_document == 1
-                self.account_check = 1
+        run { [self] in
+            if registration {
+                let result = try await Auth.auth().createUser(withEmail: address, password: secret)
+                let change = result.user.createProfileChangeRequest()
+                change.displayName = displayName
+                try await change.commitChanges()
+                try await result.user.sendEmailVerification()
             } else {
-                self.account_check = 0
+                _ = try await Auth.auth().signIn(withEmail: address, password: secret)
             }
-            completion()
+            password.text = nil
+            NotificationCenter.default.post(name: .accountDidChange, object: nil)
         }
     }
 
-    
-    
-//MARK: Updating User Data (previously logged in)
-    func updateUserDataLogIn(completion: @escaping () -> ()) {
-        db.collection("users").document(Auth.auth().currentUser!.uid).updateData(["login": 1]) { (error) in
-            if error != nil {
-                print(error)
+    private func resetPassword() {
+        let address = email.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard address.contains("@") else { showMessage("Enter your email above first."); return }
+        run { [self] in
+            try await Auth.auth().sendPasswordReset(withEmail: address)
+            showMessage("If an account exists for that address, a password reset email will arrive shortly.")
+        }
+    }
+
+    private func verificationForm(_ user: User) {
+        let refresh = AppUI.button("I verified my email", action: UIAction { [weak self] _ in
+            self?.run {
+                try await user.reload()
+                _ = try await user.getIDTokenResult(forcingRefresh: true)
+                if user.isEmailVerified { NotificationCenter.default.post(name: .accountDidChange, object: nil) }
+                else { self?.showMessage("Open the verification link in your email, then try again.") }
             }
-            completion()
-        }
-    }
-
-    
-    
-//MARK: Creating User Data (previously not logged in)
-    func updateUserData(name: String, email: String, completion: @escaping () -> ()) {
-        completionCheck(name: name, email: email){
-            if self.completionCheck == 1 {
-                self.db.collection("users").document(Auth.auth().currentUser!.uid).setData([
-                    "name": name,
-                    "email": email,
-                    "score": 0,
-                    "login": 1,
-                    //"gameName": self.gameNameArray
-                ]) { err in
-                    if let err = err {
-                        print("Error writing document: \(err)")
-                    } else {
-                        print("Document successfully written!")
-                        completion()
-                    }
-                }
-            } else {
-                completion()
-            }
-        }
-    }
-
-    func completionCheck(name: String, email: String,completion: @escaping () -> ()) {
-        self.db.collection("users").getDocuments() { (querySnapshot, err) in
-            if let err = err {
-                print("Error getting documents: \(err)")
-            } else {
-                var count = 0
-                var check = 1
-                
-                if querySnapshot!.documents.count == 0 {
-                    completion()
-                }
-                
-                for document in querySnapshot!.documents {
-                    count = count + 1
-                    let scoreCheck = document.data()["score"] as? Int ?? -1
-                    let nameCheck = document.data()["name"] as? String ?? ""
-                    let emailCheck = document.data()["email"] as? String ?? ""
-                    let gameCount = document.data()["gameCount"] as? Int ?? 0
-                    
-                    var name_removed = name
-                    if let paranthesisRange = name_removed.range(of: ") ") {
-                        name_removed.removeSubrange(name_removed.startIndex..<(paranthesisRange.upperBound))
-                    }
-                    
-                    if scoreCheck == -1 && email.lowercased() == emailCheck.lowercased() {
-                        if document.data()["gameName"] != nil {
-                            let info = document.data()["gameName"] as? Dictionary<String, Any> ?? nil
-                            if info != nil {
-                                for (_, value) in info! {
-                                    let info2 = value as! Dictionary<String, Any>
-                                    for (key2, value2) in info2 {
-                                        if key2 == "name" {
-                                            self.gameName = value2 as! String
-                                        } else if key2 == "score" {
-                                            self.score = value2 as! String
-                                        } else if key2 == "date" {
-                                            self.date = value2 as! String
-                                        } else if key2 == "remainingTime" {
-                                            self.time = value2 as! String
-                                        } else if key2 == "teamMembers" {
-                                            self.team = value2 as! String
-                                        }
-                                    }
-                                    self.profileInfo.append(Info(name: self.gameName, score: self.score, time_stamp: self.date, remainingTime: self.time, team: self.team))
-                                    self.db.collection("users").document(Auth.auth().currentUser!.uid).setData([
-                                        "name": name,
-                                        "email": email,
-                                        "score": 0,
-                                        "login": 1,
-                                    ]) { err in
-                                        if let err = err {
-                                            print("Error writing document: \(err)")
-                                        } else {
-                                            self.db.collection("users").document(Auth.auth().currentUser!.uid).updateData([
-                                                "gameCount": (gameCount+1),
-                                                "gameName.\((gameCount+1)).name": self.gameName,
-                                                "gameName.\((gameCount+1)).score": String(self.score),
-                                                "gameName.\((gameCount+1)).teamMembers": self.team,
-                                                "gameName.\((gameCount+1)).date": self.date,
-                                                "gameName.\((gameCount+1)).remainingTime": self.time
-                                            ])
-                                            self.completionCheck = 0
-                                            check = 0
-                                            self.db.collection("users").document(document.documentID).delete()
-                                            completion()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if count == querySnapshot!.documents.count && check == 1 {
-                        self.completionCheck = 1
-                        completion()
-                    }
-                }
-            }
-        }
-    }
-        
-//MARK: Validate All Fields
-    func validateFields() -> String? {
-        if emailField.text?.trimmingCharacters(in: .whitespacesAndNewlines) == "" ||
-            passwordField.text?.trimmingCharacters(in: .whitespacesAndNewlines) == "" {
-            return "Please fill in all fields."
-        }
-        return nil
-    }
-}
-
-//MARK: Hide Keyboard Extension
-extension UIViewController {
-    func hideKeyboardWhenTappedAround() {
-        let tap = UITapGestureRecognizer(target: self, action: #selector(UIViewController.dismissKeyboard))
-        tap.cancelsTouchesInView = false
-        view.addGestureRecognizer(tap)
-    }
-    
-    @objc func dismissKeyboard() {
-        view.endEditing(true)
-    }
-}
-
-
-
-//MARK: UIButton Image Extension
-extension UIButton {
-    func moveImageLeftTextCenter(imagePadding: CGFloat = 20.0){
-        guard let imageViewWidth = self.imageView?.frame.width else{return}
-        guard let titleLabelWidth = self.titleLabel?.intrinsicContentSize.width else{return}
-        self.contentHorizontalAlignment = .left
-        imageEdgeInsets = UIEdgeInsets(top: 0.0, left: imagePadding - imageViewWidth / 2, bottom: 0.0, right: 0.0)
-        titleEdgeInsets = UIEdgeInsets(top: 0.0, left: (bounds.width - titleLabelWidth) / 2 - imageViewWidth, bottom: 0.0, right: 0.0)
+        })
+        let resend = AppUI.button("Resend verification email", action: UIAction { [weak self] _ in
+            self?.run { try await user.sendEmailVerification(); self?.showMessage("Verification email sent.") }
+        })
+        let signOut = AppUI.button("Use another account", action: UIAction { [weak self] _ in
+            self?.run { try Auth.auth().signOut() }
+        })
+        AppUI.form([AppUI.label("Check your email", style: .largeTitle),
+                    AppUI.label("Verify \(user.email ?? "your address") to join courses and teams."), refresh, resend, signOut], in: self)
     }
 }
