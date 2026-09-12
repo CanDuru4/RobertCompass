@@ -136,6 +136,8 @@ Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log
 
 After the resource-packaging change, all seven Swift regression tests passed in `build/config-regression.xcresult`; the physical-only attestation test was skipped on the simulator. The simulator gameplay rerun exposed an unavailable location fixture. With XCTest providing fresh checkpoint locations, both UI scenarios passed in `build/config-ui-fixed.xcresult`.
 
+The updated Release iPhone build also passed in `build/release-cloud-config.log`. Its bundled configuration points to `robert-compass` and `com.CanDuru.Radventure`; neither legacy credential plist is present. This Release check used `CODE_SIGNING_ALLOWED=NO`, so it does not establish distribution readiness.
+
 - Simulator compilation does not verify every supported iOS version. Test the oldest supported device and current production iOS before App Store submission.
 - App Attest and real email delivery need runtime verification. The physical-device XCTest check currently requires the paired iPhone to be unlocked. Distribution provisioning remains a separate release check.
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
