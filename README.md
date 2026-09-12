@@ -15,7 +15,7 @@ An iOS orienteering app with shared teams, GPS checkpoints, questions, and a liv
 - App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`. The signed app passed all eight unit/device checks on the owner's iPhone 17 Pro Max running iOS 27, including a real Firebase App Attest token exchange.
 - The app runs entirely on Firebase Spark: Authentication, Firestore transactions, and security rules. No Cloud Functions, external server, billing account, or paid plan is required. Do not enable Blaze. Local tests use disposable Firebase emulators.
 
-The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The local practice course is emulator sample data. The live Robert College Starter course uses the campus center supplied by the owner and six mapped footpath checkpoints. Its positions have not been walked on site.
+The retired `radventure-robert` project is rejected by the app. Its old `GoogleService-Info.plist` and `Keys.plist` have been moved out of the app folder into the ignored cleanup recovery folder and are never bundled or read. Local Firebase exports were found under `Extra Files/Old Files/Firebase JSON Files` and preserved. Their contents have not been validated or migrated; recovering original users, questions, routes, or scores requires reviewing those exports. The local practice course is emulator sample data. The live Robert College Starter course uses the campus center supplied by the owner and six mapped footpath checkpoints. Its positions have not been walked on site.
 
 ## Open and run
 
@@ -23,11 +23,15 @@ Open `Radventure.xcodeproj`, select `Radventure`, and let Xcode resolve packages
 
 Without a new configuration file, the app presents a setup screen. For simulator development, select `Radventure Local` after starting the emulators below. This supplies the Debug-only `--emulator` argument. Release builds ignore emulator arguments.
 
+The obsolete top-level `Radventure.xcworkspace`, empty Pods/Translation/Frameworks groups, Microsoft sign-in artwork, retired Cloud Functions service and tests, and superseded read-only rules have been removed from the active project. Open the `.xcodeproj` directly. Its embedded `project.xcworkspace` and `Package.resolved` remain because Swift Package Manager uses them. Files retired during cleanup are recoverable under the ignored `build/cleanup-recovery-2026-09-12` folder or from Git history.
+
+Keep `Radventure/Configuration/FirebaseConfig.plist`, `courses`, and `Extra Files`. The ignored `build` folder also holds local Firebase CLI authorization, the Node runtime, dependency caches, and verification evidence, so do not delete it wholesale when clearing build products.
+
 ## Local backend and tests
 
 Requirements: Node 22, Java 21 or later, Xcode, and an installed iOS simulator runtime. Dependencies are locked in `backend/package-lock.json` and Xcode's `Package.resolved`.
 
-Organizer tools use Firebase Admin 14.4.0, Firestore 9.1.0, and Google Auth Library 10.9.1. The earlier Functions implementation remains only as a historical reference under `backend/src`; it is neither called by the app nor configured for deployment. A `qs` override keeps the HTTP dependency on patched version 6.16.0 or later until upstream ranges catch up. See the [upstream advisory](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g) and [Admin release notes](https://firebase.google.com/support/release-notes/admin/node).
+Organizer tools use Firebase Admin 14.4.0, Firestore 9.1.0, and Google Auth Library 10.9.1. `backend/src/domain.js` contains only the import validation and answer-normalization helpers; the retired server code and `firebase-functions` dependency have been removed. A `qs` override keeps the HTTP dependency on patched version 6.16.0 or later until upstream ranges catch up. See the [upstream advisory](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g) and [Admin release notes](https://firebase.google.com/support/release-notes/admin/node).
 
 The `gaxios` dependency also uses a scoped `uuid` 11.1.1 override; its only use is the compatible `v4()` boundary generator. Development-only Firebase CLI dependencies still have upstream moderate audit advisories. Do not feed the CLI untrusted CSV, archives, or database exports. Production and development audits are checked separately; no automatic major-version downgrade is applied to silence audit output.
 
@@ -156,7 +160,7 @@ The opt-in live check is `node backend/scripts/live-smoke.js --project robert-co
 - Debug and unsigned Release compilation do not establish App Store distribution readiness. Confirm distribution provisioning and test the oldest supported iOS version before submission.
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
 - Expiry is enforced for new answer receipts even while the client is suspended. Records finalize when a member reconnects; no paid cleanup service is configured.
-- Old users and scores cannot be recovered without access to the original project or an export.
+- Original Firebase exports are preserved locally, but recovering usable historical data from them has not been attempted.
 
 ## References
 

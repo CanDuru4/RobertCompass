@@ -132,14 +132,11 @@
 			children = (
 				1F097B202A5CA127005FBA32 /* README.md */,
 				1F097B212A5CA134005FBA32 /* CHANGELOG.md */,
-				1FDC80592A44971600F9CC96 /* Translation */,
 				1F7DF46D2A4DD3E800093A3F /* Images */,
 				1FDC80282A44927E00F9CC96 /* Radventure */,
 				1FDC803F2A44927F00F9CC96 /* RadventureTests */,
 				1FDC80492A44927F00F9CC96 /* RadventureUITests */,
 				1FDC80272A44927E00F9CC96 /* Products */,
-				80684BC2994B3DA299CDFE51 /* Pods */,
-				515563DA311F6FDF6FB65E57 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -192,13 +189,6 @@
 			path = RadventureUITests;
 			sourceTree = "<group>";
 		};
-		1FDC80592A44971600F9CC96 /* Translation */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Translation;
-			sourceTree = "<group>";
-		};
 		1FDC805B2A44978000F9CC96 /* Helper */ = {
 			isa = PBXGroup;
 			children = (
@@ -232,20 +222,6 @@
 				1FBA92D72B15D940001EDB74 /* LogInViewController.swift */,
 			);
 			path = Login;
-			sourceTree = "<group>";
-		};
-		515563DA311F6FDF6FB65E57 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		80684BC2994B3DA299CDFE51 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		A6344000936A18299030155C /* Services */ = {
