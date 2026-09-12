@@ -12,8 +12,8 @@ An iOS orienteering app with shared teams, GPS checkpoints, questions, and a liv
 - Email/Password provider enabled in that project, with Require enforcement and a minimum password length of 12 confirmed in the console.
 - Default Standard Firestore database created in `europe-west1` on Spark. Tested access rules and indexes are deployed to the live project.
 - Firebase CLI authorization is complete, and the new Apple configuration is downloaded into the ignored local configuration folder.
-- App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`. A Debug iPhone build is signed with the owner's Apple Development identity and the production App Attest entitlement. Physical-device attestation and distribution signing remain unverified.
-- Billing approval, Cloud Functions deployment, and physical device verification remain release gates until completed. Local tests use disposable Firebase emulators.
+- App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`. The signed app passed all eight unit/device checks on the owner's iPhone 17 Pro Max running iOS 27, including a real Firebase App Attest token exchange.
+- The owner requires the no-cost Spark plan. Do not enable Blaze, attach billing, or deploy paid Firebase services. The protected game service needs an external host before live gameplay can work; Firebase continues to provide Authentication and Firestore. Local tests use disposable Firebase emulators.
 
 The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The supplied practice course is explicitly sample data, not an approved campus route.
 
@@ -75,16 +75,16 @@ Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Fir
 2. Create the default Firestore database in `europe-west1`, initially in production mode. Enable Authentication with Email/Password, set minimum password length to 12, and review verification/recovery email templates. Players must verify their address before reading course data.
 3. Download the Apple configuration for `com.CanDuru.Radventure`. Save it locally as `Radventure/Configuration/FirebaseConfig.plist`. Xcode copies the `Configuration` resource folder using its standard resource phase, including when it contains no configuration file. Keep only the Apple client configuration in this folder; never put private keys here. Git ignores the configuration. Other bundles and the retired project are rejected.
 4. Register App Check using App Attest and your confirmed Apple Developer team. Test on a physical device. Simulator development uses emulators because App Attest is unavailable there.
-5. Enable Blaze only after owner approval of billing. Cloud Functions deployment requires billing. Functions use Node 22 in `europe-west1`, zero minimum instances, and at most three instances per function. These limits are not a spending cap. Set Google Cloud billing alerts.
-6. Deploy the verified rules, indexes, and functions:
+5. Keep the project on Spark. The owner explicitly declined a paid Firebase plan. Firebase Cloud Functions cannot be the live game-service host under this constraint; deploy the protected game service on an approved existing server or a separate no-cost host. Hosting selection and that deployment are pending.
+6. Deploy the verified database rules and indexes independently of the game service:
 
 ```sh
 "$COMPASS_ROOT/backend/node_modules/.bin/firebase" deploy \
   --config "$COMPASS_ROOT/firebase.json" --project robert-compass \
-  --only firestore:rules,firestore:indexes,functions
+  --only firestore:rules,firestore:indexes
 ```
 
-7. Wait for indexes to finish building, import a reviewed course, and test two real accounts on physical devices. Verify email delivery/recovery, App Check, team joining, simultaneous scoring, background/resume, location denial, history, sign-out, and deletion before distribution.
+7. After the external game service is deployed, wait for indexes to finish building, import a reviewed course, and test two real accounts on physical devices. Verify email delivery/recovery, team joining, simultaneous scoring, background/resume, location denial, history, sign-out, and deletion before distribution. Physical App Attest verification is already complete.
 
 Production callables enforce App Check and require an existing, enabled, email-verified user. Firestore denies all client writes. Do not weaken these rules to work around configuration errors. Analytics, notifications, Crashlytics, and school OAuth are not required.
 
@@ -132,14 +132,16 @@ Deletion requires recent password reauthentication and no open activity. It dele
 
 Verified locally on September 12, 2026: Debug simulator build, Release iPhone build (unsigned), 7 Swift tests, 2 simulator UI scenarios, 6 backend domain tests, and 17 Firestore/Auth/Functions integration tests all passed. The UI scenario restores an active session after termination, completes both sample checkpoints for 200 points, and checks the leaderboard, history, and completed-session restoration. Production dependency audit reports zero vulnerabilities; the full development dependency audit retains five moderate upstream advisories.
 
-Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log`, `build/integration-verified.log`, and `build/release-final.log`. A subsequent signed iPhone Debug build passed in `build/device-build-fixed.log`. Configuration-present and configuration-absent incremental builds passed, including removal of stale bundled configuration when the source file is absent. Live Firestore rules and index deployment succeeded, recorded in `build/firestore-deploy.log`, and an unauthenticated live read was denied with HTTP 403. Cloud Functions deployment remains pending billing approval.
+Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log`, `build/integration-verified.log`, and `build/release-final.log`. A subsequent signed iPhone Debug build passed in `build/device-build-fixed.log`. Configuration-present and configuration-absent incremental builds passed, including removal of stale bundled configuration when the source file is absent. Live Firestore rules and index deployment succeeded, recorded in `build/firestore-deploy.log`, and an unauthenticated live read was denied with HTTP 403. Live gameplay requires an external game-service deployment compatible with the owner's no-cost Firebase requirement.
 
 After the resource-packaging change, all seven Swift regression tests passed in `build/config-regression.xcresult`; the physical-only attestation test was skipped on the simulator. The simulator gameplay rerun exposed an unavailable location fixture. With XCTest providing fresh checkpoint locations, both UI scenarios passed in `build/config-ui-fixed.xcresult`.
 
 The updated Release iPhone build also passed in `build/release-cloud-config.log`. Its bundled configuration points to `robert-compass` and `com.CanDuru.Radventure`; neither legacy credential plist is present. This Release check used `CODE_SIGNING_ALLOWED=NO`, so it does not establish distribution readiness.
 
+Physical-device evidence is in `build/device-attest-unlocked.xcresult` and `build/device-attest-unlocked.log`: eight tests passed, with no skipped tests, including successful production App Attest verification against the new Firebase project.
+
 - Simulator compilation does not verify every supported iOS version. Test the oldest supported device and current production iOS before App Store submission.
-- App Attest and real email delivery need runtime verification. The physical-device XCTest check currently requires the paired iPhone to be unlocked. Distribution provisioning remains a separate release check.
+- Real email delivery and complete live gameplay still need verification after the external server setup. Distribution provisioning remains a separate release check.
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
 - Expiry is enforced on every answer even while the client is suspended. Expired records finalize when a member reconnects; no recurring paid cleanup job is configured.
 - Old course content/history needs an export or reconstruction from the organizer.
