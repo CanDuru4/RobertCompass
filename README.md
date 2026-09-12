@@ -10,9 +10,10 @@ An iOS orienteering app with shared teams, GPS checkpoints, questions, and a liv
 - Shared lobbies, invite codes, captain controls, server-selected routes, GPS checks, atomic scoring, live results, and paginated history.
 - New Firebase project `robert-compass` and iOS app `com.CanDuru.Radventure` created in the owner's current Google account.
 - Email/Password provider enabled in that project, with Require enforcement and a minimum password length of 12 confirmed in the console.
-- Default Standard Firestore database created in `europe-west1` on Spark, with production-mode rules denying all client access until deployment.
-- App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`, matching the local Can Duru signing certificates. Physical-device attestation and distribution signing remain unverified.
-- Cloud authorization, billing, service setup, and physical device verification remain release gates until completed. Local tests use disposable Firebase emulators.
+- Default Standard Firestore database created in `europe-west1` on Spark. Tested access rules and indexes are deployed to the live project.
+- Firebase CLI authorization is complete, and the new Apple configuration is downloaded into the ignored local configuration folder.
+- App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`. A Debug iPhone build is signed with the owner's Apple Development identity and the production App Attest entitlement. Physical-device attestation and distribution signing remain unverified.
+- Billing approval, Cloud Functions deployment, and physical device verification remain release gates until completed. Local tests use disposable Firebase emulators.
 
 The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The supplied practice course is explicitly sample data, not an approved campus route.
 
@@ -64,15 +65,15 @@ xcodebuild -project "$COMPASS_ROOT/Radventure.xcodeproj" -scheme Radventure \
   CODE_SIGN_IDENTITY=- test
 ```
 
-Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Firebase Auth from accessing the simulator keychain. Swift tests cover decoding, stable IDs, deadline boundaries, suspension across midnight, and duration formatting. Backend tests cover verified identity, access rules, concurrent joins/answers, expiry, captain/admin controls, and deletion. UI tests exercise sign-in, team creation, both question styles, results, history, and relaunch restoration.
+Use ad hoc simulator signing as shown. `CODE_SIGNING_ALLOWED=NO` can prevent Firebase Auth from accessing the simulator keychain. Swift tests cover decoding, stable IDs, deadline boundaries, suspension across midnight, and duration formatting. Backend tests cover verified identity, access rules, concurrent joins/answers, expiry, captain/admin controls, and deletion. UI tests exercise sign-in, team creation, both question styles, results, history, and relaunch restoration. They supply a fresh location at each checkpoint through XCTest and restore the previous simulated location afterward. An interrupted fixture activity is ended through the normal captain controls before the next run.
 
 ## Connect the new cloud project
 
 [Open Robert Compass in Firebase](https://console.firebase.google.com/project/robert-compass/overview). `.firebaserc` deliberately defaults to the disposable demo project; live commands must explicitly target `robert-compass`.
 
-1. Authorize the official Firebase CLI with the project owner's account. Never commit service-account private keys or CLI refresh tokens.
+1. Authorize the official Firebase CLI with the project owner's account. Authorization is already complete on this checkout and stored under the ignored `build/firebase-cli` directory. Set `export XDG_CONFIG_HOME="$COMPASS_ROOT/build/firebase-cli"` before using the local CLI to reuse that authorization. Never commit service-account private keys or CLI refresh tokens.
 2. Create the default Firestore database in `europe-west1`, initially in production mode. Enable Authentication with Email/Password, set minimum password length to 12, and review verification/recovery email templates. Players must verify their address before reading course data.
-3. Download the Apple configuration for `com.CanDuru.Radventure`. Save it locally as `Radventure/Configuration/FirebaseConfig.plist`. The build copies that file if present; Git ignores it. Other bundles and the retired project are rejected.
+3. Download the Apple configuration for `com.CanDuru.Radventure`. Save it locally as `Radventure/Configuration/FirebaseConfig.plist`. Xcode copies the `Configuration` resource folder using its standard resource phase, including when it contains no configuration file. Keep only the Apple client configuration in this folder; never put private keys here. Git ignores the configuration. Other bundles and the retired project are rejected.
 4. Register App Check using App Attest and your confirmed Apple Developer team. Test on a physical device. Simulator development uses emulators because App Attest is unavailable there.
 5. Enable Blaze only after owner approval of billing. Cloud Functions deployment requires billing. Functions use Node 22 in `europe-west1`, zero minimum instances, and at most three instances per function. These limits are not a spending cap. Set Google Cloud billing alerts.
 6. Deploy the verified rules, indexes, and functions:
@@ -131,10 +132,12 @@ Deletion requires recent password reauthentication and no open activity. It dele
 
 Verified locally on September 12, 2026: Debug simulator build, Release iPhone build (unsigned), 7 Swift tests, 2 simulator UI scenarios, 6 backend domain tests, and 17 Firestore/Auth/Functions integration tests all passed. The UI scenario restores an active session after termination, completes both sample checkpoints for 200 points, and checks the leaderboard, history, and completed-session restoration. Production dependency audit reports zero vulnerabilities; the full development dependency audit retains five moderate upstream advisories.
 
-Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log`, `build/integration-verified.log`, and `build/release-final.log`. Live service deployment has not been verified.
+Local evidence is under ignored `build/ios-final.xcresult`, `build/ios-final.log`, `build/integration-verified.log`, and `build/release-final.log`. A subsequent signed iPhone Debug build passed in `build/device-build-fixed.log`. Configuration-present and configuration-absent incremental builds passed, including removal of stale bundled configuration when the source file is absent. Live Firestore rules and index deployment succeeded, recorded in `build/firestore-deploy.log`, and an unauthenticated live read was denied with HTTP 403. Cloud Functions deployment remains pending billing approval.
+
+After the resource-packaging change, all seven Swift regression tests passed in `build/config-regression.xcresult`; the physical-only attestation test was skipped on the simulator. The simulator gameplay rerun exposed an unavailable location fixture. With XCTest providing fresh checkpoint locations, both UI scenarios passed in `build/config-ui-fixed.xcresult`.
 
 - Simulator compilation does not verify every supported iOS version. Test the oldest supported device and current production iOS before App Store submission.
-- Cloud setup, App Attest, Apple signing ownership, and real email delivery need verification after the account/billing steps.
+- App Attest and real email delivery need runtime verification. The physical-device XCTest check currently requires the paired iPhone to be unlocked. Distribution provisioning remains a separate release check.
 - Leaderboard displays the top 100 teams and labels that limit. History loads 25 entries per page.
 - Expiry is enforced on every answer even while the client is suspended. Expired records finalize when a member reconnects; no recurring paid cleanup job is configured.
 - Old course content/history needs an export or reconstruction from the organizer.

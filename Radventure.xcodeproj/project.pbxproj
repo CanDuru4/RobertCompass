@@ -31,6 +31,7 @@
 		83652CC588866EE13FC5F5CA /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 38C1BC91EBEE0FF376FDFAA9 /* FirebaseAppCheck */; };
 		84D0761D17E13DCE36F76E7E /* AppUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 264FB66EA65415E38981A471 /* AppUI.swift */; };
 		A120696B3C953B4C5F07764D /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 082D99B407F9F898144FBEB1 /* FirebaseAuth */; };
+		AFD920F03538DBD741DACC0A /* Configuration in Resources */ = {isa = PBXBuildFile; fileRef = 77AECF32291E595D246045B5 /* Configuration */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +77,7 @@
 		1FDC80612A44984600F9CC96 /* TabBarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewController.swift; sourceTree = "<group>"; };
 		1FDC80652A449A0C00F9CC96 /* ScoreboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreboardViewController.swift; sourceTree = "<group>"; };
 		264FB66EA65415E38981A471 /* AppUI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppUI.swift; sourceTree = "<group>"; };
+		77AECF32291E595D246045B5 /* Configuration */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; path = Configuration; sourceTree = "<group>"; };
 		D15D3E6A18F0D0606430A03A /* Backend.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
 		F1BA04F7181466EEB9152C40 /* GameModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -168,6 +170,7 @@
 				1FDC80372A44927F00F9CC96 /* Info.plist */,
 				D65F3B5860F695929143A290 /* Models */,
 				A6344000936A18299030155C /* Services */,
+				77AECF32291E595D246045B5 /* Configuration */,
 			);
 			path = Radventure;
 			sourceTree = "<group>";
@@ -274,7 +277,6 @@
 				1FDC80222A44927E00F9CC96 /* Sources */,
 				1FDC80232A44927E00F9CC96 /* Frameworks */,
 				1FDC80242A44927E00F9CC96 /* Resources */,
-				B6810F61F904C7144A8C7CBD /* Copy new Firebase configuration if present */,
 			);
 			buildRules = (
 			);
@@ -381,6 +383,7 @@
 				1FDC80362A44927F00F9CC96 /* LaunchScreen.storyboard in Resources */,
 				1FDC80332A44927F00F9CC96 /* Assets.xcassets in Resources */,
 				1F160E1E2A86C13700D94BA2 /* LogoLaunchScreen.png in Resources */,
+				AFD920F03538DBD741DACC0A /* Configuration in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,30 +402,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		B6810F61F904C7144A8C7CBD /* Copy new Firebase configuration if present */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/Radventure/Configuration",
-			);
-			name = "Copy new Firebase configuration if present";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/FirebaseConfig.plist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -eu\nconfig_source=\"${SRCROOT}/Radventure/Configuration/FirebaseConfig.plist\"\nconfig_output=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FirebaseConfig.plist\"\nif [ -f \"$config_source\" ]; then\n  cp \"$config_source\" \"$config_output\"\nelse\n  rm -f \"$config_output\"\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1FDC80222A44927E00F9CC96 /* Sources */ = {

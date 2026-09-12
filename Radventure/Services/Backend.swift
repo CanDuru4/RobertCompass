@@ -43,7 +43,7 @@ enum Backend {
             return
         }
         #endif
-        guard let file = Bundle.main.path(forResource: "FirebaseConfig", ofType: "plist"),
+        guard let file = Bundle.main.path(forResource: "FirebaseConfig", ofType: "plist", inDirectory: "Configuration"),
               let options = FirebaseOptions(contentsOfFile: file),
               let project = options.projectID, !project.isEmpty, project != "radventure-robert",
               options.bundleID == Bundle.main.bundleIdentifier else {

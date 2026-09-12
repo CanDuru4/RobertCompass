@@ -1,9 +1,34 @@
 import XCTest
+import FirebaseCore
+import FirebaseAppCheck
 @testable import Radventure
 
-/// Regression tests for decoding, session deadlines, and duration presentation.
+/// Regression tests for models, deadlines, presentation, and physical-device attestation.
 /// - Example: Run the RadventureTests target in Xcode.
 final class RadventureTests: XCTestCase {
+    /// Verify the bundled cloud configuration and Apple attestation on a real device.
+    /// - Note: Simulators and unconfigured checkouts skip this live service check.
+    /// - Throws: XCTest skip or missing-configuration errors; token values are never logged.
+    /// - Example: Run RadventureTests on a paired iPhone with the new Firebase configuration.
+    @MainActor
+    func testLiveAppAttestOnPhysicalDevice() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("App Attest requires a physical device.")
+        #else
+        try XCTSkipIf(Backend.isEmulator || Backend.setupError != nil, "This check requires live Firebase configuration.")
+        let app = try XCTUnwrap(FirebaseApp.app())
+        XCTAssertEqual(app.options.bundleID, Bundle.main.bundleIdentifier)
+        do {
+            let result = try await AppCheck.appCheck().token(forcingRefresh: true)
+            XCTAssertFalse(result.token.isEmpty)
+            XCTAssertGreaterThan(result.expirationDate, Date())
+        } catch {
+            let failure = error as NSError
+            XCTFail("App Attest failed with domain \(failure.domain), code \(failure.code).")
+        }
+        #endif
+    }
+
     private func session(expiresAt: Double = 100000, status: String = "active") throws -> GameSession {
         try GameSession.decode(id: "session-1", data: [
             "gameId": "course", "gameName": "Course", "teamName": "Team", "ownerId": "owner",
