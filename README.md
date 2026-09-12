@@ -11,6 +11,7 @@ An iOS orienteering app with shared teams, GPS checkpoints, questions, and a liv
 - New Firebase project `robert-compass` and iOS app `com.CanDuru.Radventure` created in the owner's current Google account.
 - Email/Password provider enabled in that project, with Require enforcement and a minimum password length of 12 confirmed in the console.
 - Default Standard Firestore database created in `europe-west1` on Spark, with production-mode rules denying all client access until deployment.
+- App Attest registered for `com.CanDuru.Radventure` and Apple team `NV57XZ3KBV`, matching the local Can Duru signing certificates. Physical-device attestation and distribution signing remain unverified.
 - Cloud authorization, billing, service setup, and physical device verification remain release gates until completed. Local tests use disposable Firebase emulators.
 
 The retired `radventure-robert` project is rejected by the app. Existing local `GoogleService-Info.plist` and `Keys.plist` files are ignored and are not bundled or read. Old users, questions, routes, and scores require access to the old account or an export. The supplied practice course is explicitly sample data, not an approved campus route.
