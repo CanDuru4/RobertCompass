@@ -5,7 +5,7 @@ Local backend, Firebase project, course import, data rules and verification reco
 Examples below use `COMPASS_ROOT` for the absolute path of your checkout:
 
 ```sh
-export COMPASS_ROOT=/absolute/path/to/RobertCompass
+export COMPASS_ROOT=/absolute/path/to/robert-compass
 ```
 
 ## Local files and retired data
