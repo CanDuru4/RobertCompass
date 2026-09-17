@@ -49,7 +49,7 @@ The app talks directly to Firestore; there are no Cloud Functions, external serv
 1. Clone the repository.
 
    ```bash
-   git clone https://github.com/CanDuru4/RobertCompass.git
+   git clone https://github.com/CanDuru4/robert-compass.git
    ```
 
 2. Open `Radventure.xcodeproj`, select the `Radventure` scheme, and let Xcode resolve packages. Do not run `pod install`; CocoaPods is no longer used.
